@@ -1,0 +1,136 @@
+{
+  "global_limits": {
+    "max_distance_mm": 200,
+    "max_sequence_steps": 10,
+    "default_speed_percent": 30,
+    "max_speed_percent": 80,
+    "max_wait_seconds": 10
+  },
+  "skills": {
+    "move_relative_linear": {
+      "description": "相对当前位姿直线移动",
+      "params": {
+        "axis": { "type": "string", "enum": ["x", "y", "z"], "required": true },
+        "direction": { "type": "string", "enum": ["+", "-"], "required": true },
+        "distance_mm": { "type": "number", "min": 0.1, "max": 200, "required": true },
+        "speed_percent": { "type": "number", "min": 1, "max": 50, "default": 30 }
+      },
+      "examples": [
+        "向 X 正方向移动 100 毫米",
+        "向 Z 负方向移动 50mm",
+        "抬高 100 毫米",
+        "下降 50 毫米"
+      ]
+    },
+    "move_relative_sequence": {
+      "description": "按顺序多次相对直线移动（最多 10 步，如先 X+ 再 Y+ 再 Z+）",
+      "params": {
+        "steps": { "type": "array", "required": true },
+        "speed_percent": { "type": "number", "min": 1, "max": 50, "default": 30 }
+      },
+      "examples": [
+        "先 x+50mm，再 y+50mm",
+        "先向 X 正方向移动 50 毫米，再向 Y 正方向移动 50 毫米",
+        "先抬高 10 毫米，然后向 X 正方向移动 20 毫米，接着向 Y 正方向移动 20 毫米",
+        "第一步向 X 正方向移动 30 毫米，第二步向 Y 正方向移动 30 毫米，第三步抬高 20 毫米",
+        "先 x+20，再 y+20，再 z+20，再 x-20，再 y-20，再 z-20，再 x+10，再 y+10，再 z+10，再 x-10"
+      ]
+    },
+    "move_to_named_point": {
+      "description": "移动到命名点位",
+      "params": {
+        "point": { "type": "string", "required": true },
+        "move_type": { "type": "string", "enum": ["movj", "movl"], "default": "movj" },
+        "speed_percent": { "type": "number", "min": 1, "max": 50, "default": 30 }
+      },
+      "examples": ["移动到 A 点", "去 point_a", "回到 home"]
+    },
+    "move_between_points": {
+      "description": "在两个命名点之间运动",
+      "params": {
+        "from_point": { "type": "string", "required": true },
+        "to_point": { "type": "string", "required": true },
+        "move_type": { "type": "string", "enum": ["movj", "movl"], "default": "movj" },
+        "speed_percent": { "type": "number", "min": 1, "max": 50, "default": 30 }
+      },
+      "examples": ["从 A 点移动到 B 点", "从 point_a 到 point_b"]
+    },
+    "motion_pattern": {
+      "description": "执行预置复合运动路线，底层仅调用 dobot_api.py 中已有的 MovL、Arc、Circle",
+      "params": {
+        "pattern": {
+          "type": "string",
+          "enum": [
+            "circle_xy",
+            "circle_xz",
+            "circle_yz",
+            "arc_xy",
+            "arc_xz",
+            "arc_yz",
+            "square_xy",
+            "rectangle_xy",
+            "triangle_xy",
+            "diamond_xy",
+            "cross_xy",
+            "zigzag_x",
+            "wave_y",
+            "u_shape_xy",
+            "xyz_step_return",
+            "xz_lift_return",
+            "yz_lift_return",
+            "l_shape_xyz",
+            "box_outline",
+            "spiral_z"
+          ],
+          "required": true
+        },
+        "size_mm": { "type": "number", "min": 5, "max": 200, "default": 50 },
+        "radius_mm": { "type": "number", "min": 5, "max": 100, "default": 30 },
+        "height_mm": { "type": "number", "min": -200, "max": 200, "default": 50 },
+        "turns": { "type": "number", "min": 1, "max": 5, "default": 2 },
+        "speed_percent": { "type": "number", "min": 1, "max": 50, "default": 30 }
+      },
+      "examples": [
+        "画圆",
+        "在 XY 平面画圆",
+        "走三维螺旋运动",
+        "先运动 X+ 再运动 Y+ 再运动 Z+ 再回到原点",
+        "走方形路线",
+        "走箱体轮廓"
+      ]
+    },
+    "set_speed": {
+      "description": "设置全局速度比例",
+      "params": {
+        "speed_percent": { "type": "number", "min": 1, "max": 50, "required": true }
+      },
+      "examples": ["速度设置为 30%", "速度调到 20"]
+    },
+    "wait": {
+      "description": "等待指定秒数",
+      "params": {
+        "seconds": { "type": "number", "min": 0.1, "max": 10, "required": true }
+      },
+      "examples": ["等待 2 秒", "停 1.5 秒"]
+    },
+    "read_pose": {
+      "description": "读取当前位姿（用于标定或调试）",
+      "params": {
+        "save_as": { "type": "string", "required": false }
+      },
+      "examples": ["读取当前位置", "记录当前位置为 home"]
+    },
+    "stop_or_disable": {
+      "description": "停止运动或下使能",
+      "params": {
+        "action": { "type": "string", "enum": ["stop", "disable"], "default": "stop" }
+      },
+      "examples": ["停止运动", "下使能"]
+    },
+    "enable_robot": {
+      "description": "上使能机械臂",
+      "params": {},
+      "examples": ["上使能", "上使能机械臂"]
+    }
+  }
+}
