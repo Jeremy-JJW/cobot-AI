@@ -1,10 +1,31 @@
-请按刚才的规则做验收：
+请按刚才的规则做验收（全部用 dry-run，不要真机动，除非我回复「执行」）：
 
-1. 工作目录：Z:\Cursor_contents\cobot+AI应用
-2. 对用户指令「向 Z 正方向移动 100 毫米」执行预演（不要真机动）：
-   .\.venv\Scripts\python nl_robot.py --dry-run "向 Z 正方向移动 100 毫米"
-3. 用中文解释 skill 和 params
-4. 禁止生成任何 Python 文件
-5. 等我回复「执行」后，再运行不带 --dry-run 的同一命令
+工作目录：Z:\Cursor_contents\cobot+AI应用
 
-如果命令失败，说明原因，不要自己写代码代替。
+【测试 1 — 单步相对移动】
+指令：向 Z 正方向移动 100 毫米
+命令：.\.venv\Scripts\python nl_robot.py --dry-run "向 Z 正方向移动 100 毫米"
+期望：skill=move_relative_linear，axis=z，direction=+，distance_mm=100
+
+【测试 2 — 多步相对移动】
+指令：先 x+30mm，再 y+30mm
+命令：.\.venv\Scripts\python nl_robot.py --dry-run "先 x+30mm，再 y+30mm"
+期望：skill=move_relative_sequence，steps 含 2 步
+
+【测试 3 — 复合轨迹】
+指令：画圆 30 毫米
+命令：.\.venv\Scripts\python nl_robot.py --dry-run "画圆 30 毫米"
+期望：skill=motion_pattern，pattern=circle_xy，radius_mm=30
+
+【测试 4 — 使能控制】
+指令：上使能
+命令：.\.venv\Scripts\python nl_robot.py --dry-run "上使能"
+期望：skill=enable_robot，params={}
+
+每条测试请：
+1. 用中文解释 skill 和 params
+2. 贴出命令输出或 generated\last_plan.json 要点
+3. 禁止生成任何 Python 文件
+
+全部预演通过后，等我回复「执行」，再对测试 1 运行不带 --dry-run 的同一条命令。
+若命令失败，说明原因，不要自己写代码代替。

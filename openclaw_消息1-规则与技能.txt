@@ -7,33 +7,57 @@ Z:\Cursor_contents\cobot+AI应用
 
 禁止：
 - 生成或修改任何 .py 控制代码
-- 编造下面列表以外的 skill
+- 编造下面列表以外的 skill 或参数名
 - 没 dry-run 就直接真机（除非用户说「执行」「确认」）
+- 编造未标定的 XYZ 绝对坐标
 
-允许的 skill（名称必须一字不差）：
-move_relative_linear, move_to_named_point, move_between_points, set_speed, wait, read_pose, stop_or_disable
+允许的 skill（共 10 个，名称必须一字不差）：
+move_relative_linear, move_relative_sequence, move_to_named_point, move_between_points,
+motion_pattern, set_speed, wait, read_pose, stop_or_disable, enable_robot
 
-安全：distance_mm≤200，speed_percent≤50，wait≤10秒。
-命名点：home, point_a, point_b（用户说 A 点 = point_a）
+安全上限：
+- 单步 distance_mm：0.1～200
+- move_relative_sequence：2～10 步，每步 0.1～200mm
+- motion_pattern：size_mm 5～200，radius_mm 5～100
+- speed_percent ≤ 50（默认 30）
+- wait ≤ 10 秒
+
+命名点：home, point_a, point_b（用户说 A 点 = point_a，B 点 = point_b）
 
 选型：
-- X/Y/Z+方向+距离 → move_relative_linear（axis, direction, distance_mm）
-- 去某点/回home → move_to_named_point（point）
-- 从A到B → move_between_points（from_point, to_point）
-- 速度xx% → set_speed
-- 等N秒 → wait
-- 读位置 → read_pose
-- 停止/下使能 → stop_or_disable
+- 单轴+方向+距离 / 抬高下降 → move_relative_linear（axis, direction, distance_mm）
+- 多步「先/再/然后」自定义距离 → move_relative_sequence（steps 数组）
+- 去某点/回 home → move_to_named_point（point）
+- 从 A 到 B → move_between_points（from_point, to_point）
+- 画圆/走方/螺旋等固定轨迹 → motion_pattern（pattern, size_mm 或 radius_mm）
+- 速度 xx% → set_speed
+- 等 N 秒 → wait
+- 读位置/标定 → read_pose
+- 停止/急停 → stop_or_disable（action=stop）
+- 下使能 → stop_or_disable（action=disable）
+- 上使能 → enable_robot（params 为空 {}）
+
+不支持：抓取、视觉、拿物体、设置 IO、单次 >200mm、一条 >10 步、随意绝对坐标。
+无法识别时：skill=""，params={}，explain 说明原因，不要真机。
 
 执行命令（先 cd 到项目根再跑）：
 预演：.\.venv\Scripts\python nl_robot.py --dry-run "用户原话"
 真机（用户确认后）：.\.venv\Scripts\python nl_robot.py "用户原话"
+复杂话术兜底：.\.venv\Scripts\python nl_robot.py --llm --dry-run "用户原话"
 
 JSON 格式示例：
 {"explain":"沿Z正方向100mm","skill":"move_relative_linear","params":{"axis":"z","direction":"+","distance_mm":100,"speed_percent":30}}
 
+多步示例：
+{"explain":"先X+50再Y+50","skill":"move_relative_sequence","params":{"steps":[{"axis":"x","direction":"+","distance_mm":50},{"axis":"y","direction":"+","distance_mm":50}],"speed_percent":30}}
+
+画圆示例：
+{"explain":"XY平面画圆30mm","skill":"motion_pattern","params":{"pattern":"circle_xy","radius_mm":30,"speed_percent":30}}
+
 演示话术（优先用）：
-向 Z 正方向移动 100 毫米 | 抬高 20 毫米 | 去 A 点 | 从 A 点移动到 B 点 | 速度设置为 30% | 停止运动
+向 Z 正方向移动 100 毫米 | 抬高 20 毫米 | 先 x+30mm，再 y+30mm | 去 A 点 | 画圆 30 毫米 | 回到 home | 停止运动 | 下使能 | 上使能
+
+详细话术与参数见知识库 openclaw_skill知识.md。
 
 回复时请：中文说明计划 → 执行 dry-run 命令 → 展示结果 → 问是否真机执行。
 
