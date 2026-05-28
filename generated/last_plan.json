@@ -1,8 +1,0 @@
-{
-  "skill": "move_to_named_point",
-  "params": {
-    "point": "home"
-  },
-  "explain": "移动到 home",
-  "source": "rule"
-}
