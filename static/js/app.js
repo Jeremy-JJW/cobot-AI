@@ -146,18 +146,22 @@ async function sendAndExecute() {
     appendBot("正在理解您的需求，请稍候", { thinking: true });
 
     const planData = await requestJson("/api/plan", { text });
+    const skill = planData.validated_plan?.skill || planData.plan?.skill;
 
     // 阶段二：已理解，展示动作摘要
     appendBot(planData.message);
 
-    // 阶段三：执行中（带旋转指示器）
+    // 阶段三：执行 / 读取（带旋转指示器）
     setStatus("执行中");
-    appendBot("正在控制机器人运动", { thinking: true });
+    const executingMsg =
+      skill === "read_pose" ? "正在读取当前位姿" : "正在控制机器人运动";
+    appendBot(executingMsg, { thinking: true });
 
     const result = await requestJson("/api/run-once", { text, plan: planData.plan });
 
-    // 完成
-    appendBot(result.message || "动作已完成", { isSuccess: true });
+    // 完成：读位姿展示坐标，运动类展示执行成功
+    const doneMsg = result.message || (skill === "read_pose" ? "位姿读取完成" : "动作已完成");
+    appendBot(doneMsg, { isSuccess: skill !== "read_pose" });
     setStatus("已就绪");
   } catch (error) {
     appendBot(error.message || "无法执行该动作，请换一种说法", { isError: true });
@@ -183,3 +187,87 @@ commandInput.addEventListener("keydown", (event) => {
 
 refreshStatus();
 setInterval(refreshStatus, 5000);
+
+/* ── Speech Recognition ── */
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const micBtn = document.getElementById("micBtn");
+let isListening = false;
+
+if (!SpeechRecognition) {
+  micBtn.style.display = "none";
+} else {
+  micBtn.addEventListener("click", toggleSpeech);
+}
+
+function toggleSpeech() {
+  if (isListening) {
+    stopListening();
+    return;
+  }
+  startListening();
+}
+
+function startListening() {
+  if (busy) return;
+  const recognition = new SpeechRecognition();
+  recognition.lang = "zh-CN";
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+
+  isListening = true;
+  micBtn.classList.add("listening");
+  micBtn.title = "点击停止录音";
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    commandInput.value = transcript;
+    commandInput.style.height = "auto";
+    commandInput.style.height = `${Math.min(commandInput.scrollHeight, 120)}px`;
+    commandInput.focus();
+  };
+
+  recognition.onerror = (event) => {
+    if (event.error === "not-allowed") {
+      appendBot("麦克风权限被拒绝，请在浏览器设置中允许麦克风访问", { isError: true });
+    } else if (event.error === "no-speech") {
+      // silent, just reset
+    } else {
+      console.warn("语音识别错误:", event.error);
+    }
+    stopListening();
+  };
+
+  recognition.onend = () => {
+    stopListening();
+  };
+
+  try {
+    recognition.start();
+  } catch (e) {
+    stopListening();
+  }
+
+  // Store recognition instance for manual stop
+  micBtn._recognition = recognition;
+}
+
+function stopListening() {
+  isListening = false;
+  micBtn.classList.remove("listening");
+  micBtn.title = "语音输入";
+  if (micBtn._recognition) {
+    try { micBtn._recognition.stop(); } catch (_) {}
+    micBtn._recognition = null;
+  }
+}
+
+// Also stop listening when busy state changes via setBusy
+const _origSetBusy = setBusy;
+setBusy = function (nextBusy) {
+  _origSetBusy(nextBusy);
+  if (nextBusy && isListening) {
+    stopListening();
+  }
+  micBtn.disabled = nextBusy;
+};

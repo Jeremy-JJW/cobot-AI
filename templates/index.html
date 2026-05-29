@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>COBOT AI 聊天</title>
-  <link rel="stylesheet" href="/static/css/app.css?v=14">
+  <link rel="stylesheet" href="/static/css/app.css?v=15">
 </head>
 <body>
   <div class="app-shell">
@@ -40,6 +40,12 @@
           rows="1"
           placeholder="输入机械臂动作指令（Enter 发送）"
         ></textarea>
+        <button class="mic-btn" id="micBtn" type="button" aria-label="语音输入" title="语音输入">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+          </svg>
+        </button>
         <button class="send-btn" id="executeBtn" type="button" aria-label="发送">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
             <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
@@ -49,6 +55,6 @@
     </footer>
   </div>
 
-  <script src="/static/js/app.js?v=14"></script>
+  <script src="/static/js/app.js?v=15"></script>
 </body>
 </html>

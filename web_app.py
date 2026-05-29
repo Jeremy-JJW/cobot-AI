@@ -12,7 +12,12 @@ from robot_planner import plan_from_text
 from robot_runner import execute_plan, save_plan
 from robot_session import RobotSession
 from semantic_cache import remember_plan
-from web_plan_format import format_plan_summary, format_understood_message
+from web_plan_format import (
+    format_completion_message,
+    format_executing_message,
+    format_plan_summary,
+    format_understood_message,
+)
 
 load_dotenv()
 
@@ -182,7 +187,15 @@ def api_run_once():
             result="success",
             duration_ms=int((time.time() - t0) * 1000),
         )
-        return jsonify({"ok": True, "message": "动作已完成"})
+        validated = result.get("validated_plan") or plan
+        return jsonify(
+            {
+                "ok": True,
+                "message": format_completion_message(validated),
+                "skill": validated.get("skill"),
+                "result": validated.get("result"),
+            }
+        )
     except ValueError as exc:
         _set_status("错误")
         log_operation(

@@ -32,5 +32,7 @@ def execute_skill(
         "named_points": load_named_points(),
         "registry": registry,
     }
-    handler(session, params, context)
+    skill_result = handler(session, params, context)
+    if skill_result:
+        validated = {**validated, "result": skill_result}
     return validated

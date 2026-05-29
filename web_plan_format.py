@@ -128,3 +128,31 @@ def format_understood_message(plan: dict[str, Any]) -> str:
 def format_confirm_message(plan: dict[str, Any]) -> str:
     summary = format_plan_summary(plan).replace("\n", "；")
     return f"已明白你想要的动作：{summary}。请确认是否执行。"
+
+
+def format_pose_text(pose: list[float]) -> str:
+    labels = ("X", "Y", "Z", "RX", "RY", "RZ")
+    parts = [f"{labels[i]}={pose[i]:.2f}" for i in range(min(len(labels), len(pose)))]
+    return "，".join(parts)
+
+
+def format_executing_message(plan: dict[str, Any]) -> str:
+    skill = plan.get("skill")
+    if skill == "read_pose":
+        return "正在读取当前位姿"
+    return "正在控制机器人运动"
+
+
+def format_completion_message(plan: dict[str, Any]) -> str:
+    skill = plan.get("skill")
+    result = plan.get("result") or {}
+    if skill == "read_pose":
+        pose = result.get("pose")
+        if not pose:
+            return "未能读取位姿，请检查机械臂连接"
+        pose_text = format_pose_text(pose)
+        save_as = (plan.get("params") or {}).get("save_as") or result.get("save_as")
+        if save_as:
+            return f"已记录为 {save_as}，当前位姿：{pose_text}"
+        return f"当前位姿：{pose_text}"
+    return "动作已完成"

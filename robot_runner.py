@@ -59,7 +59,9 @@ def run_once(
         session.connect()
 
     try:
-        if plan["skill"] != "stop_or_disable" or plan["params"].get("action") != "disable":
+        if plan["skill"] != "read_pose" and (
+            plan["skill"] != "stop_or_disable" or plan["params"].get("action") != "disable"
+        ):
             session.enable()
             if verbose:
                 print("使能成功，开始执行" if first_connect else "开始执行")
@@ -111,7 +113,9 @@ def execute_plan(
         session.connect()
 
     try:
-        if plan["skill"] != "stop_or_disable" or plan["params"].get("action") != "disable":
+        if plan["skill"] != "read_pose" and (
+            plan["skill"] != "stop_or_disable" or plan["params"].get("action") != "disable"
+        ):
             session.enable()
 
         validated = execute_skill(session, plan, dry_run=False)

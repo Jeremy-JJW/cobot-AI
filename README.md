@@ -1,2 +1,291 @@
 # cobot-AI
 自研cobot控制面板
+
+# 项目文件说明
+
+> 本文档帮你快速搞清楚：**每个文件是干什么的、谁调用谁、平时该看哪个**。  
+> 项目根目录：`Z:\Cursor_contents\cobot+AI应用`
+
+---
+
+## 一、整体是怎么跑起来的
+
+**两种使用方式：**
+
+### CLI 模式（`nl_robot.py`）
+
+```text
+用户输入（自然语言）
+    │
+    ├─ rule_parser.py       规则解析（优先，快，不用 API Key）
+    └─ llm_planner.py       大模型兜底（--llm）
+    │
+    ▼
+JSON 计划 { skill, params }
+    │
+    ▼
+executor.py                白名单执行器
+    │
+    ├─ skill_registry.json  只允许这里注册的动作
+    └─ skills/*.py          每个 Skill 的具体实现
+    │
+    ▼
+robot_session.py           机械臂会话
+    │
+    ├─ DobotDemo.py         厂商 Demo 基类
+    └─ dobot_api.py         Dobot 官方 TCP SDK
+    │
+    ▼
+Dobot 机械臂（示教器需切到 TCP/IP 远程控制）
+```
+
+### Web 模式（`web_app.py`，推荐演示用）
+
+```text
+用户输入 → Web 页面 (templates/index.html + static/js/app.js + static/css/app.css)
+    │
+    ▼
+web_app.py                  Flask 后端
+    │
+    ├─ /api/plan            plan_from_text() → 规则/LLM 解析 → 返回摘要
+    ├─ /api/run-once        execute_plan() → 连接机械臂并执行
+    └─ /api/status          返回连接状态
+    │
+    ├─ robot_planner.py     通用 plan 入口（供 CLI 和 Web 共用）
+    ├─ robot_runner.py      通用 execute 入口（供 CLI 和 Web 共用）
+    ├─ executor.py          白名单执行器
+    ├─ logger.py            操作日志 + Flask 请求日志
+    ├─ semantic_cache.py    语义缓存（相同指令复用上次解析）
+    └─ web_plan_format.py   摘要/消息中文化格式化
+```
+
+---
+
+## 二、核心运行代码
+
+| 文件 | 作用 | 何时会动它 |
+|------|------|------------|
+| `nl_robot.py` | **CLI 入口**。接收一条指令或进入交互模式 | 日常调试、快速测试 |
+| `web_app.py` | **Web 入口（Flask）**。提供 Web 界面和 REST API | **演示时运行** |
+| `robot_planner.py` | **通用计划器**。规则/LLM 混合解析，供 CLI 和 Web 共用 | 改解析逻辑时 |
+| `robot_runner.py` | **通用执行器**。连接、执行、保持会话，供 CLI 和 Web 共用 | 改执行流程时 |
+| `rule_parser.py` | **规则解析器**。固定话术 → `{ skill, params }`，内置 4000+ 说法 | 扩充话术时 |
+| `llm_planner.py` | **大模型规划器**。调 OpenAI 兼容 API → JSON | 改 LLM 逻辑时 |
+| `executor.py` | **白名单执行器**。校验计划 + 调用对应 Skill | 加新 Skill 时 |
+| `robot_session.py` | **机械臂会话**。连接、使能、movj/movl/arc/circle 等 | 加新底层运动时 |
+| `DobotDemo.py` | 厂商 Demo 基类，TCP 连接 + 反馈线程 | 通常不改 |
+| `dobot_api.py` | Dobot 官方 TCP SDK | **禁止自创接口** |
+| `web_plan_format.py` | Web 摘要格式化：中文摘要、已明白消息、执行完成消息 | 改前端显示文字时 |
+| `logger.py` | 日志模块：操作日志（CSV）+ Flask 请求日志（RotatingFile） | 改日志格式时 |
+| `semantic_cache.py` | 语义缓存：相同指令复用上次解析结果 | 改缓存策略时 |
+
+---
+
+## 三、Skill 模块（`skills/` 目录）
+
+每个 Skill 一个文件，统一有 `run(session, params, context)` 函数。
+
+| 文件 | Skill 名称 | 做什么 |
+|------|------------|--------|
+| `skills/base.py` | — | 公共工具：读注册表、读点位、校验参数 |
+| `skills/__init__.py` | — | 汇总所有 Skill handler |
+| `skills/move_relative_linear.py` | `move_relative_linear` | 沿 X/Y/Z 相对直线移动 |
+| `skills/move_relative_sequence.py` | `move_relative_sequence` | **多步相对移动**（2～10 步顺序执行） |
+| `skills/move_to_named_point.py` | `move_to_named_point` | 移动到命名点 |
+| `skills/move_between_points.py` | `move_between_points` | 从 A 点到 B 点 |
+| `skills/motion_pattern.py` | `motion_pattern` | **20 种复合路线**（圆/弧/方形/螺旋等） |
+| `skills/set_speed.py` | `set_speed` | 设置全局速度 |
+| `skills/wait.py` | `wait` | 等待 |
+| `skills/read_pose.py` | `read_pose` | 读取位姿 / 标定点 |
+| `skills/stop_or_disable.py` | `stop_or_disable` | 停止 / 下使能 |
+| `skills/enable_robot.py` | `enable_robot` | 上使能机械臂 |
+
+**新增 Skill：** `skill_registry.json` → `skills/xxx.py` → `skills/__init__.py` → 可选 `rule_parser.py`
+
+---
+
+## 四、配置与数据文件
+
+| 文件 | 作用 | 谁读写 |
+|------|------|--------|
+| `skill_registry.json` | **Skill 白名单 + 参数边界** | executor、rule_parser、llm_planner |
+| `positions.json` | **命名点位坐标**（home/point_a/point_b） | read_pose 写入；移动类 Skill 读取 |
+| `.env` | 私密配置（ROBOT_IP、API Key 等） | web_app.py、llm_planner.py 读取 |
+| `.env.example` | `.env` 模板 | 复制后改名为 `.env` |
+| `requirements.txt` | Python 依赖 | pip install |
+| `robot_planner_prompt.txt` | LLM 系统提示 | llm_planner.py 读取 |
+
+---
+
+## 五、Web 前端文件
+
+| 文件 | 作用 |
+|------|------|
+| `templates/index.html` | **Web 主页面**：顶部状态栏 + 对话气泡区 + 底部输入框 |
+| `static/css/app.css` | 样式：浅色粉色主题、气泡布局、打字动画、响应式 |
+| `static/js/app.js` | 交互逻辑：对话渲染、状态轮询、三阶段反馈、发送/禁用 |
+
+### 前端交互流程
+
+```
+用户输入 → 阶段1: "正在理解您的需求，请稍候" + 打字动画
+        → /api/plan 返回摘要
+        → 阶段2: "已明白你想要的动作：xxx" + 摘要
+        → 自动调用 /api/run-once
+        → 阶段3: "正在控制机器人运动" + 打字动画 → "动作已完成"
+```
+
+---
+
+## 六、OpenClaw 相关（阶段 1 用，当前不再依赖）
+
+| 文件 | 作用 |
+|------|------|
+| `openclaw_system_prompt.txt` | OpenClaw 系统提示词 |
+| `openclaw_skill知识.md` | OpenClaw 知识库 |
+| `openclaw_消息1-规则与技能.txt` | 首条配置消息 |
+| `openclaw_消息2-验收测试.txt` | 验收消息 |
+| `openclaw_首次任务.txt` | 首次配置说明 |
+
+---
+
+## 七、文档类
+
+| 文件 | 给谁看 | 内容 |
+|------|--------|------|
+| **`使用说明书.md`** | **现场部署** | 30 分钟部署指南（安装、配置、启动、故障排查） |
+| **`使用说明.md`** | **演示/客户** | 一页话术速查表（可打印） |
+| `项目文件说明.md` | **你** | 本文档 |
+| `开发说明.md` | 开发者 | 新增 Skill、底层 API 对应关系 |
+| `方案规划.md` | 项目总览 | 目标、三阶段计划、验收标准 |
+| `项目任务计划表.md` | 项目管理 | 分阶段 checklist |
+| `项目任务计划表.xlsx` | 项目管理 | Excel 版进度表 |
+
+---
+
+## 八、运行时生成的文件
+
+| 路径 | 作用 |
+|------|------|
+| `generated/last_plan.json` | 最近一次解析计划 |
+| `generated/operation_log.csv` | 操作日志（时间、指令、Skill、结果、耗时） |
+| `generated/app.log` | Flask 请求日志（自动轮转 5MB×3 份） |
+| `generated/experience_cache.json` | 语义缓存（相同指令命中缓存跳过解析） |
+| `__pycache__/` | Python 编译缓存 |
+| `.venv/` | 虚拟环境 |
+
+---
+
+## 九、文件关系速查
+
+### 解析入口
+
+| 文件 | 输入 | 输出 |
+|------|------|------|
+| `rule_parser.py` | 中文指令 | `{ skill, params }` 或 None |
+| `llm_planner.py` | 中文指令 | `{ skill, params }`（调 API） |
+| `robot_planner.py` | 中文指令 | 规则优先 → LLM 兜底 |
+
+### 执行入口
+
+| 文件 | 输入 | 输出 |
+|------|------|------|
+| `robot_runner.py` | 计划 + IP | 执行结果（含 session） |
+| `web_app.py` | HTTP 请求 | JSON 响应 |
+| `executor.py` | 计划对象 | 校验结果 / 执行结果 |
+
+### 控制层级
+
+| 文件 | 层级 | 能不能改 |
+|------|------|----------|
+| `dobot_api.py` | 官方 SDK | 尽量不改 |
+| `DobotDemo.py` | 厂商 Demo | 尽量不改 |
+| `robot_session.py` | 项目封装 | 新增底层运动时改 |
+| `skills/*.py` | 业务动作 | 新增 Skill 时改 |
+| `robot_runner.py` | 执行编排 | 改执行策略时改 |
+
+---
+
+## 十、日常操作对应哪个文件
+
+| 你想做的事 | 主要改/看 |
+|------------|-----------|
+| **启动 Web 演示** | `.venv\Scripts\python web_app.py` |
+| **浏览器访问** | `http://127.0.0.1:5000` |
+| 增加固定话术 | `rule_parser.py` + `使用说明.md` |
+| 增加新动作 | `skill_registry.json` + `skills/` |
+| 标定命名点 | 真机说「记录当前位置为 xxx」或改 `positions.json` |
+| 改机械臂 IP | `.env` 里 `ROBOT_IP` |
+| 换大模型 | `.env` 里 `OPENAI_*` |
+| 看操作日志 | `generated/operation_log.csv` |
+| 看上次解析 | `generated/last_plan.json` |
+| 跟踪进度 | `项目任务计划表.md` |
+
+---
+
+## 十一、项目文件全景
+
+```
+cobot+AI应用/
+│
+├── web_app.py                  # ★ Web 入口（演示用）
+├── nl_robot.py                 # CLI 入口（调试用）
+│
+├── robot_planner.py            # 通用计划器
+├── robot_runner.py             # 通用执行器
+├── executor.py                 # 白名单执行器
+├── rule_parser.py              # 规则解析
+├── llm_planner.py              # LLM 兜底
+├── robot_session.py            # 机械臂封装
+├── logger.py                   # 日志模块
+├── semantic_cache.py           # 语义缓存
+├── web_plan_format.py          # 格式化输出
+│
+├── DobotDemo.py                # 厂商 Demo
+├── dobot_api.py                # 官方 SDK
+│
+├── skill_registry.json         # Skill 白名单
+├── positions.json              # 命名点位
+├── robot_planner_prompt.txt    # LLM 提示词
+├── requirements.txt
+├── .env / .env.example
+│
+├── skills/                     # 各 Skill 实现
+│   ├── base.py
+│   ├── __init__.py
+│   ├── enable_robot.py         # 上使能
+│   ├── move_relative_linear.py
+│   ├── move_relative_sequence.py # ★ 多步移动
+│   ├── move_to_named_point.py
+│   ├── move_between_points.py
+│   ├── motion_pattern.py
+│   ├── set_speed.py
+│   ├── wait.py
+│   ├── read_pose.py
+│   └── stop_or_disable.py
+│
+├── templates/
+│   └── index.html              # ★ Web 主页面
+│
+├── static/
+│   ├── css/app.css             # ★ 样式
+│   └── js/app.js               # ★ 交互逻辑
+│
+├── generated/                   # 运行时自动生成
+│   ├── last_plan.json
+│   ├── operation_log.csv       # 操作日志
+│   ├── app.log                 # Flask 请求日志
+│   └── experience_cache.json   # 语义缓存
+│
+├── scripts/
+│   └── md_to_pdf.py
+│
+├── openclaw_*.txt / openclaw_*.md  # 阶段 1 遗留
+│
+├── 使用说明书.md                # ★ 本部署文档
+├── 使用说明.md                  # 演示话术（一页）
+├── 开发说明.md
+├── 方案规划.md
+├── 项目任务计划表.md
+└── 项目任务计划表.xlsx
+```
