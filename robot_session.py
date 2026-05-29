@@ -1,5 +1,6 @@
 """Dobot TCP 会话封装：连接、使能、运动、读位姿、停止。"""
 import re
+import socket
 import threading
 import time
 from time import sleep
@@ -36,8 +37,16 @@ class RobotSession(DobotDemo):
 
     def __init__(self, ip):
         super().__init__(ip)
+        self.feedFour = None
         self._feed_running = False
         self._enabled = False
+
+    def _ensure_socket_connected(self, api, port: int, label: str) -> None:
+        if api is None or getattr(api, "socket_dobot", 0) == 0:
+            raise RuntimeError(
+                f"连接机械臂 {self.ip}:{port} 失败（{label}），"
+                "请检查 IP、网络、示教器 TCP/IP 远程控制和端口占用"
+            )
 
     def connect(self) -> None:
         from dobot_api import DobotApiDashboard, DobotApiFeedBack
@@ -46,7 +55,36 @@ class RobotSession(DobotDemo):
             return
 
         self.dashboard = DobotApiDashboard(self.ip, self.dashboardPort)
-        self.feedFour = DobotApiFeedBack(self.ip, self.feedPortFour)
+        self._ensure_socket_connected(self.dashboard, self.dashboardPort, "控制端口")
+
+        # 连通性检查：发一条测试指令，5 秒无响应则报错
+        sock = getattr(self.dashboard, "socket_dobot", 0)
+        if sock and sock != 0:
+            try:
+                sock.settimeout(5)
+                sock.send(b"GetPose()\r\n")
+                test_data = sock.recv(1024)
+                sock.settimeout(None)  # 恢复阻塞模式，后续 wait_reply 正常运作
+                if not test_data or len(test_data) == 0:
+                    raise RuntimeError("机械臂无响应")
+            except (OSError, socket.timeout):
+                self.disconnect()
+                raise RuntimeError(
+                    f"连接机械臂 {self.ip}:{self.dashboardPort} 失败，"
+                    "请检查：\n"
+                    "1. 机械臂 IP 是否正确\n"
+                    "2. 网络是否可达\n"
+                    "3. 示教器是否已切换到 TCP/IP 远程控制\n"
+                    "4. 示教器 29999/30004 端口是否被其他软件占用"
+                ) from None
+
+        try:
+            self.feedFour = DobotApiFeedBack(self.ip, self.feedPortFour)
+            self._ensure_socket_connected(self.feedFour, self.feedPortFour, "反馈端口")
+        except Exception:
+            self.disconnect()
+            raise
+
         self._feed_running = True
         feed_thread = threading.Thread(target=self.GetFeed, daemon=True)
         feed_thread.start()
@@ -98,17 +136,22 @@ class RobotSession(DobotDemo):
     def get_pose(self) -> list[float]:
         return parse_pose(self.dashboard.GetPose())
 
-    def _wait_command(self, recv: str) -> None:
+    def _wait_command(self, recv: str, timeout: float = 15.0) -> None:
         parsed = parse_numbers(recv)
         if parsed[0] != 0:
             raise RuntimeError(f"运动指令失败: {recv}")
         cmd_id = parsed[1]
-        deadline = time.monotonic() + 120
+        deadline = time.monotonic() + timeout
         while True:
             if self.feedData.robotMode == 5 and self.feedData.robotCurrentCommandID == cmd_id:
                 break
             if time.monotonic() > deadline:
-                raise RuntimeError("等待运动完成超时，请检查反馈线程或关闭其他占用端口的软件")
+                raise RuntimeError(
+                    "机械臂运动执行超时，请检查：\n"
+                    "1. 机械臂是否已使能\n"
+                    "2. 机械臂是否处于急停状态\n"
+                    "3. 机械臂是否已断开连接"
+                )
             sleep(0.1)
 
     def _run_move(self, move_fn, point: list[float], coordinate_mode: int = 0, v: int = 50) -> None:
@@ -157,7 +200,7 @@ class RobotSession(DobotDemo):
             except Exception:
                 pass
 
-        if self.feedFour is not None:
+        if getattr(self, "feedFour", None) is not None:
             feed = self.feedFour
             self.feedFour = None
             try:

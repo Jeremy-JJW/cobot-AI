@@ -10,6 +10,7 @@ class DobotDemo:
         self.dashboardPort = 29999
         self.feedPortFour = 30004
         self.dashboard = None
+        self.feedFour = None
         self.feedInfo = []
         self.__globalLockValue = threading.Lock()
 
@@ -97,5 +98,7 @@ class DobotDemo:
         return [int(num) for num in re.findall(r'-?\d+', valueRecv)] or [2]
 
     def __del__(self):
-        del self.dashboard
-        del self.feedFour
+        if getattr(self, "dashboard", None) is not None:
+            del self.dashboard
+        if getattr(self, "feedFour", None) is not None:
+            del self.feedFour

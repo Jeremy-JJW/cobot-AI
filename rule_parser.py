@@ -10,7 +10,7 @@ AXIS_DIRECTIONS = {
     "x-": ("x", "-", ("x负", "x-", "x 轴负", "x轴负", "x负方向", "x轴负方向")),
     "y+": ("y", "+", ("y正", "y+", "y 轴正", "y轴正", "y正方向", "y轴正方向")),
     "y-": ("y", "-", ("y负", "y-", "y 轴负", "y轴负", "y负方向", "y轴负方向")),
-    "z+": ("z", "+", ("z正", "z+", "z 轴正", "z轴正", "z正方向", "z轴正方向", "上升", "抬高", "升高", "向上", "往上")),
+    "z+": ("z", "+", ("z正", "z+", "z 轴正", "z轴正", "z正方向", "z轴正方向", "上升", "抬高", "抬升", "升高", "向上", "往上")),
     "z-": ("z", "-", ("z负", "z-", "z 轴负", "z轴负", "z负方向", "z轴负方向", "下降", "降低", "向下", "往下")),
 }
 
@@ -219,7 +219,7 @@ def _parse_single_relative_clause(clause: str) -> dict[str, Any] | None:
     if not clause:
         return None
 
-    if re.search(r"抬高|上升|向上|升高|往上", clause, re.I):
+    if re.search(r"抬高|抬升|上升|向上|升高|往上", clause, re.I):
         distance = _distance_in_clause(clause)
         if distance is not None:
             return {"axis": "z", "direction": "+", "distance_mm": distance}
@@ -257,9 +257,14 @@ def _parse_relative_sequence(text: str) -> list[dict[str, Any]] | None:
     clauses = _split_sequence_clauses(text)
     if len(clauses) >= 2:
         for clause in clauses:
+            if _is_speed_only_command(clause):
+                continue
             step = _parse_single_relative_clause(clause)
-            if step:
-                steps.append(step)
+            if not step:
+                # 保守策略：多步指令只要有任一步解析不了，就整条交给 LLM/报错，
+                # 避免漏掉某一步后仍然执行不完整动作。
+                return None
+            steps.append(step)
     else:
         for match in RELATIVE_SEGMENT_RE.finditer(text):
             steps.append(_parse_relative_segment(match))
@@ -267,6 +272,55 @@ def _parse_relative_sequence(text: str) -> list[dict[str, Any]] | None:
     if len(steps) < 2:
         return None
     return steps[:MAX_SEQUENCE_STEPS]
+
+
+def _looks_like_speed_suffix_only(text: str) -> bool:
+    """True when commas only separate movement from a trailing speed note."""
+    clauses = _split_sequence_clauses(text)
+    if len(clauses) < 2:
+        return False
+    movement_clauses = [clause for clause in clauses if not _is_speed_only_command(clause)]
+    if len(movement_clauses) != 1:
+        return False
+    return _parse_single_relative_clause(movement_clauses[0]) is not None
+
+
+def _has_movement_intent(text: str) -> bool:
+    """Return True when text describes motion, not speed-only tuning."""
+    raw = text.strip()
+    if _motion_pattern(raw):
+        return True
+    if re.search(
+        r"从\s*[a-zA-Z0-9_]+\s*点?\s*(?:移动|运动)?\s*到\s*[a-zA-Z0-9_]+\s*点?",
+        raw,
+        re.I,
+    ):
+        return True
+    if re.search(r"(?:移动|运动|去|回到|到达|走|偏移|画|抬|升|降)", raw):
+        if _parse_relative_sequence(raw):
+            return True
+        axis_direction = _relative_axis(raw)
+        distance = _distance(raw)
+        if axis_direction and distance is not None:
+            return True
+        if _point_name(raw):
+            return True
+    if RELATIVE_SEGMENT_RE.search(raw) or VERBOSE_RELATIVE_CLAUSE_RE.search(raw):
+        return True
+    if re.search(r"抬高|抬升|上升|向上|下降|降低|向下", raw, re.I) and _distance_in_clause(raw) is not None:
+        return True
+    return False
+
+
+def _is_speed_only_command(text: str) -> bool:
+    speed = _speed(text)
+    if speed is None or _has_movement_intent(text):
+        return False
+    return bool(
+        "速度" in text
+        or re.search(r"[\d.]+\s*(?:%|％)", text)
+        or re.search(r"慢一点|慢点|低速|快一点|快点|快速", text)
+    )
 
 
 def parse_text(text: str) -> dict[str, Any] | None:
@@ -294,15 +348,15 @@ def parse_text(text: str) -> dict[str, Any] | None:
     if re.search(r"等一下|暂停一下|停一下", raw):
         return {"skill": "wait", "params": {"seconds": 1}, "explain": "等待 1 秒"}
 
-    # 速度
-    if "速度" in raw:
+    # 速度（纯调速；带位移的指令在后面解析并附带 speed_percent）
+    if _is_speed_only_command(raw):
         speed = _speed(raw)
-        if speed is not None:
-            return {
-                "skill": "set_speed",
-                "params": {"speed_percent": speed},
-                "explain": f"设置速度为 {speed}%",
-            }
+        assert speed is not None
+        return {
+            "skill": "set_speed",
+            "params": {"speed_percent": speed},
+            "explain": f"设置速度为 {speed}%",
+        }
 
     # 读取 / 记录位姿
     if re.search(r"读取|查询|查看", raw) and re.search(r"位置|位姿|坐标", raw):
@@ -314,6 +368,25 @@ def parse_text(text: str) -> dict[str, Any] | None:
             "params": {"save_as": save_match.group(1)},
             "explain": f"记录当前位姿为 {save_match.group(1)}",
         }
+
+    # 多步相对移动：先 X+ 再 Y+ 等（优先于预置 L 型等复合路线，避免误加 Z 轴）
+    steps = _parse_relative_sequence(raw)
+    if steps:
+        speed = _speed(raw)
+        params = {"steps": steps}
+        if speed is not None:
+            params["speed_percent"] = speed
+        parts = [f"{s['axis'].upper()}{s['direction']}{s['distance_mm']}mm" for s in steps]
+        return {
+            "skill": "move_relative_sequence",
+            "params": params,
+            "explain": f"按顺序移动: {' → '.join(parts)}",
+        }
+    if SEQUENCE_INTENT_RE.search(raw):
+        # 多步意图存在但无法完整解析时，不再降级成单步/预置路线。
+        # 例外：「移动 …，速度 20%」这类逗号后只是调速说明，仍按单步处理。
+        if not _looks_like_speed_suffix_only(raw):
+            return None
 
     # 复合运动路线要优先于「回到原点」等命名点规则。
     distance = _distance(raw)
@@ -369,20 +442,6 @@ def parse_text(text: str) -> dict[str, Any] | None:
                 "params": params,
                 "explain": f"移动到 {point}",
             }
-
-    # 多步相对移动：先 X+ 再 Y+ 等
-    steps = _parse_relative_sequence(raw)
-    if steps:
-        speed = _speed(raw)
-        params = {"steps": steps}
-        if speed is not None:
-            params["speed_percent"] = speed
-        parts = [f"{s['axis'].upper()}{s['direction']}{s['distance_mm']}mm" for s in steps]
-        return {
-            "skill": "move_relative_sequence",
-            "params": params,
-            "explain": f"按顺序移动: {' → '.join(parts)}",
-        }
 
     # 单步相对移动：轴 + 方向 + 距离
     axis_direction = _relative_axis(raw)

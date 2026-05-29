@@ -42,18 +42,54 @@ def plan_from_text(user_text: str) -> dict:
         "response_format": {"type": "json_object"},
         "temperature": 0.2,
     }
-    resp = requests.post(
-        f"{base_url}/chat/completions",
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-        json=payload,
-        timeout=60,
-    )
-    resp.raise_for_status()
-    content = resp.json()["choices"][0]["message"]["content"]
-    plan = json.loads(content)
+    try:
+        resp = requests.post(
+            f"{base_url}/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=30,
+        )
+    except requests.ConnectionError:
+        raise RuntimeError(
+            "无法连接到 AI 模型服务，请检查网络连接和 API 地址配置"
+        ) from None
+    except requests.Timeout:
+        raise RuntimeError(
+            "AI 模型服务响应超时（30 秒），请稍后重试，"
+            "或检查 OPENAI_BASE_URL 和 OPENAI_MODEL 配置"
+        ) from None
+    except requests.RequestException as exc:
+        raise RuntimeError(f"AI 模型服务请求异常: {exc}") from exc
+
+    try:
+        resp.raise_for_status()
+    except requests.HTTPError as exc:
+        status = resp.status_code
+        if status == 401:
+            raise RuntimeError("AI 模型 API 密钥认证失败，请检查 OPENAI_API_KEY") from exc
+        if status == 429:
+            raise RuntimeError("AI 模型服务请求太频繁，请稍后重试") from exc
+        if 500 <= status < 600:
+            raise RuntimeError(f"AI 模型服务暂时不可用（HTTP {status}），请稍后重试") from exc
+        raise RuntimeError(f"AI 模型服务返回错误（HTTP {status}）: {resp.text[:200]}") from exc
+
+    try:
+        body = resp.json()
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"AI 模型服务返回了无法解析的响应: {resp.text[:200]}") from exc
+
+    try:
+        content = body["choices"][0]["message"]["content"]
+    except (KeyError, IndexError) as exc:
+        raise RuntimeError(f"AI 模型服务返回格式异常: {str(body)[:200]}") from exc
+
+    try:
+        plan = json.loads(content)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"AI 模型返回了无法解析的 JSON: {content[:300]}") from exc
     if "skill" in plan:
         if not plan.get("skill"):
             raise ValueError(f"模型无法识别指令: {plan.get('explain', content)}")

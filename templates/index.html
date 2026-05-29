@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>COBOT AI 聊天</title>
+  <link rel="stylesheet" href="/static/css/app.css?v=14">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="breadcrumb">
+        <span class="brand-name">COBOT AI</span>
+        <span class="sep">&gt;</span>
+        <span class="page-name">聊天</span>
+      </div>
+      <div class="header-right">
+        <div class="status-pill idle" id="statusPill">
+          <span class="status-dot"></span>
+          <span id="statusText">未连接</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="chat-main">
+      <div class="chat-log" id="chatLog">
+        <div class="msg-row msg-bot">
+          <div class="avatar avatar-bot" aria-hidden="true">AI</div>
+          <div class="bubble">
+            <p>你好，请输入机械臂动作指令，发送后将自动分析并控制机械臂。<br><span class="hint">示例：抬高 20 毫米 / 去 A 点 / 在桌面上画一个小圆</span></p>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="composer">
+      <div class="input-box">
+        <textarea
+          id="commandInput"
+          rows="1"
+          placeholder="输入机械臂动作指令（Enter 发送）"
+        ></textarea>
+        <button class="send-btn" id="executeBtn" type="button" aria-label="发送">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+          </svg>
+        </button>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/static/js/app.js?v=14"></script>
+</body>
+</html>

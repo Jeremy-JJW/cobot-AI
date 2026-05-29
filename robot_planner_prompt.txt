@@ -110,6 +110,7 @@ enable_robot — 上使能
 5. 画圆/走方/螺旋等固定轨迹 → motion_pattern（不要用 sequence 拼圆）
 6. 只调速度 → set_speed；只等待 → wait；只读位姿 → read_pose
 7. 停止/下使能/上使能 → stop_or_disable 或 enable_robot
+8. 如果用户要求同一条多步指令中每一步使用不同速度，当前单个 skill 无法精确表达，必须拒识，不要擅自取一个统一速度
 
 【明确不支持（必须拒识）】
 - 抓取、视觉识别、拿物体、设置 IO、旋转工具坐标系
