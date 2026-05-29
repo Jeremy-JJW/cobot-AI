@@ -100,6 +100,12 @@ def format_plan_summary(plan: dict[str, Any]) -> str:
         headline = f"记录当前位姿为 {save_as}" if save_as else "读取当前位姿"
     elif skill == "stop_or_disable":
         headline = "关闭机械臂使能" if params.get("action") == "disable" else "停止机械臂"
+    elif skill == "move_joint":
+        joint = params.get("joint", "")
+        angle = params.get("angle_deg", "")
+        direction = params.get("direction", "+")
+        direction_text = "正" if direction == "+" else "负"
+        headline = f"关节 {joint} {direction_text}方向旋转 {angle} 度"
     elif skill == "enable_robot":
         headline = "上使能机械臂"
     else:

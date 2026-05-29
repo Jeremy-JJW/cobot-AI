@@ -98,6 +98,50 @@ body {
   50% { opacity: 0.45; }
 }
 
+/* ── Alarm Banner ── */
+.alarm-banner {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 24px;
+  background: #fff0f0;
+  border-bottom: 1px solid #ffd6d6;
+  font-size: 0.9rem;
+  color: #c0392b;
+}
+
+.alarm-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.alarm-text {
+  flex: 1;
+  font-weight: 600;
+}
+
+.clear-alarm-btn {
+  flex-shrink: 0;
+  padding: 6px 16px;
+  border: 1px solid #e74c3c;
+  border-radius: 8px;
+  background: #e74c3c;
+  color: white;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.clear-alarm-btn:hover {
+  background: #c0392b;
+}
+
+.clear-alarm-btn:active {
+  background: #a93226;
+}
+
 .chat-main {
   flex: 1 1 auto;
   min-height: 0;
@@ -109,11 +153,12 @@ body {
   height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 24px;
+  padding: 24px 28px;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  max-width: 960px;
+  width: 100%;
+  max-width: 1080px;
   margin: 0 auto;
 }
 
@@ -121,7 +166,7 @@ body {
   display: flex;
   align-items: flex-end;
   gap: 10px;
-  max-width: 100%;
+  width: 100%;
 }
 
 .msg-user {
@@ -156,7 +201,7 @@ body {
 }
 
 .bubble {
-  max-width: min(720px, 78vw);
+  max-width: min(580px, 62%);
   padding: 10px 14px;
   border-radius: 12px;
   font-size: 0.93rem;
@@ -244,13 +289,14 @@ body {
 
 .composer {
   flex-shrink: 0;
-  padding: 16px 24px 20px;
+  padding: 16px 28px 20px;
   background: var(--bg);
   border-top: 1px solid var(--border);
 }
 
 .input-box {
-  max-width: 960px;
+  width: 100%;
+  max-width: 1080px;
   margin: 0 auto;
   display: flex;
   align-items: flex-end;
@@ -358,10 +404,15 @@ textarea::placeholder {
   }
 
   .chat-log {
-    padding: 16px;
+    padding: 16px 18px;
+  }
+
+  .composer {
+    padding-left: 18px;
+    padding-right: 18px;
   }
 
   .bubble {
-    max-width: 85vw;
+    max-width: 78%;
   }
 }

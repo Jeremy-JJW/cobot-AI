@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>COBOT AI 聊天</title>
-  <link rel="stylesheet" href="/static/css/app.css?v=15">
+  <link rel="stylesheet" href="/static/css/app.css?v=18">
 </head>
 <body>
   <div class="app-shell">
@@ -21,6 +21,12 @@
         </div>
       </div>
     </header>
+
+    <div class="alarm-banner" id="alarmBanner" style="display:none">
+      <span class="alarm-icon">⚠️</span>
+      <span class="alarm-text">机械臂报警中</span>
+      <button class="clear-alarm-btn" id="clearAlarmBtn">清除报警</button>
+    </div>
 
     <main class="chat-main">
       <div class="chat-log" id="chatLog">
@@ -55,6 +61,6 @@
     </footer>
   </div>
 
-  <script src="/static/js/app.js?v=15"></script>
+  <script src="/static/js/app.js?v=18"></script>
 </body>
 </html>

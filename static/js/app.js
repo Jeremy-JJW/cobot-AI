@@ -3,6 +3,7 @@ const commandInput = document.getElementById("commandInput");
 const executeBtn = document.getElementById("executeBtn");
 const statusPill = document.getElementById("statusPill");
 const statusText = document.getElementById("statusText");
+const alarmBanner = document.getElementById("alarmBanner");
 
 let busy = false;
 
@@ -12,6 +13,7 @@ const STATUS_CLASS = {
   "分析中": "planning",
   "执行中": "executing",
   "错误": "error",
+  "报警": "error",
 };
 
 function setStatus(status) {
@@ -114,7 +116,13 @@ async function refreshStatus() {
       appendBot("后端服务已恢复连接");
     }
     if (data.ok && !busy) {
-      setStatus(data.connected ? "已就绪" : "未连接");
+      if (data.alarm) {
+        setStatus("报警");
+        alarmBanner.style.display = "flex";
+      } else {
+        setStatus(data.connected ? "已就绪" : "未连接");
+        alarmBanner.style.display = "none";
+      }
     }
   } catch (_) {
     _consecutiveFailures++;
@@ -187,6 +195,27 @@ commandInput.addEventListener("keydown", (event) => {
 
 refreshStatus();
 setInterval(refreshStatus, 5000);
+
+/* ── Clear Alarm ── */
+document.getElementById("clearAlarmBtn").addEventListener("click", async () => {
+  if (busy) return;
+  setBusy(true);
+  try {
+    const res = await fetch("/api/clear-alarm", { method: "POST" });
+    const data = await res.json();
+    if (data.ok) {
+      appendBot("报警已清除", { isSuccess: true });
+      alarmBanner.style.display = "none";
+      setStatus("已就绪");
+    } else {
+      appendBot(data.error || "清除报警失败", { isError: true });
+    }
+  } catch (e) {
+    appendBot("清除报警失败: 无法连接后端", { isError: true });
+  } finally {
+    setBusy(false);
+  }
+});
 
 /* ── Speech Recognition ── */
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;

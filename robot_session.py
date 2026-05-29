@@ -136,6 +136,23 @@ class RobotSession(DobotDemo):
     def get_pose(self) -> list[float]:
         return parse_pose(self.dashboard.GetPose())
 
+    def get_robot_mode(self) -> int:
+        """返回机器人模式：5=已使能就绪, 9=报警。从反馈线程数据读取。"""
+        try:
+            return self.feedData.robotMode
+        except Exception:
+            return -1
+
+    def clear_alarm(self) -> None:
+        """清除控制器报警状态。"""
+        result = parse_numbers(self.dashboard.ClearError())
+        if result[0] != 0:
+            raise RuntimeError(f"清除报警失败: {result}")
+
+    def get_joints(self) -> list[float]:
+        """读取当前关节角度 [J1,J2,J3,J4,J5,J6]"""
+        return parse_pose(self.dashboard.GetAngle())
+
     def _wait_command(self, recv: str, timeout: float = 15.0) -> None:
         parsed = parse_numbers(recv)
         if parsed[0] != 0:
@@ -165,6 +182,10 @@ class RobotSession(DobotDemo):
 
     def movj(self, point: list[float], v: int = 50) -> None:
         self._run_move(self.dashboard.MovJ, point, 0, v)
+
+    def movj_joint(self, joint: list[float], v: int = 50) -> None:
+        """关节模式运动：joint=[J1,J2,J3,J4,J5,J6]"""
+        self._run_move(self.dashboard.MovJ, joint, 1, v)
 
     def movl(self, point: list[float], v: int = 50) -> None:
         self._run_move(self.dashboard.MovL, point, 0, v)

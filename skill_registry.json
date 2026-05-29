@@ -131,6 +131,20 @@
       "description": "上使能机械臂",
       "params": {},
       "examples": ["上使能", "上使能机械臂"]
+    },
+    "move_joint": {
+      "description": "控制单个关节旋转",
+      "params": {
+        "joint": { "type": "string", "enum": ["J1","J2","J3","J4","J5","J6"], "required": true },
+        "direction": { "type": "string", "enum": ["+", "-"], "required": true },
+        "angle_deg": { "type": "number", "min": 1, "max": 360, "required": true },
+        "speed_percent": { "type": "number", "min": 1, "max": 50, "default": 30 }
+      },
+      "examples": [
+        "J1 正方向旋转 180 度",
+        "J2 负方向转 90 度",
+        "J3 正转 45 度"
+      ]
     }
   }
 }

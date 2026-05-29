@@ -89,6 +89,10 @@ enable_robot — 上使能
   params: {}（空对象）
   适用：上使能、上使能机械臂
 
+move_joint — 单个关节旋转
+  params: joint(J1～J6), direction(+/-, 正/负), angle_deg(1～360), speed_percent(1～50，默认 30)
+  适用：关节1正方向旋转180度、J2负方向转90度、3轴正转45度
+
 【命名点映射】
 - A 点 / a点 → point_a
 - B 点 / b点 → point_b
@@ -110,7 +114,8 @@ enable_robot — 上使能
 5. 画圆/走方/螺旋等固定轨迹 → motion_pattern（不要用 sequence 拼圆）
 6. 只调速度 → set_speed；只等待 → wait；只读位姿 → read_pose
 7. 停止/下使能/上使能 → stop_or_disable 或 enable_robot
-8. 如果用户要求同一条多步指令中每一步使用不同速度，当前单个 skill 无法精确表达，必须拒识，不要擅自取一个统一速度
+8. 单个关节旋转（J1～J6）→ move_joint
+9. 如果用户要求同一条多步指令中每一步使用不同速度，当前单个 skill 无法精确表达，必须拒识，不要擅自取一个统一速度
 
 【明确不支持（必须拒识）】
 - 抓取、视觉识别、拿物体、设置 IO、旋转工具坐标系

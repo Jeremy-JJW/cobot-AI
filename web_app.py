@@ -78,8 +78,23 @@ def _log_and_cache(response):
 
 @app.get("/api/status")
 def api_status():
-    connected = _get_session() is not None and _get_session().dashboard is not None
-    return jsonify({"ok": True, "status": _robot_status, "connected": connected})
+    session = _get_session()
+    connected = session is not None and session.dashboard is not None
+    alarm = False
+    robot_mode = -1
+    if connected:
+        try:
+            robot_mode = session.get_robot_mode()
+            alarm = robot_mode == 9
+        except Exception:
+            pass
+    return jsonify({
+        "ok": True,
+        "status": _robot_status,
+        "connected": connected,
+        "alarm": alarm,
+        "robot_mode": robot_mode,
+    })
 
 
 @app.post("/api/plan")
@@ -222,6 +237,22 @@ def api_run_once():
             duration_ms=int((time.time() - t0) * 1000),
         )
         return jsonify({"ok": False, "error": f"执行失败: {exc}"}), 500
+
+
+@app.post("/api/clear-alarm")
+def api_clear_alarm():
+    with _robot_lock:
+        session = _get_session()
+        if session is None or session.dashboard is None:
+            return jsonify({"ok": False, "error": "未连接机械臂"}), 400
+        try:
+            session.clear_alarm()
+            _set_status("已就绪")
+            return jsonify({"ok": True, "message": "报警已清除"})
+        except RuntimeError as exc:
+            return jsonify({"ok": False, "error": str(exc)}), 500
+        except Exception as exc:
+            return jsonify({"ok": False, "error": f"清除报警失败: {exc}"}), 500
 
 
 def main() -> None:

@@ -5,6 +5,23 @@ from typing import Any
 from skills.base import resolve_point_name
 
 
+_JOINT_CN = {"一": "1", "二": "2", "三": "3", "四": "4", "五": "5", "六": "6"}
+
+# 关节控制：支持 J1、关节1、1轴、轴1、关节一等写法
+JOINT_CONTROL_RE = re.compile(
+    r"(?:"
+    r"J\s*([1-6])"             # J1, J 1
+    r"|关节\s*([1-6])"         # 关节1, 关节 1
+    r"|([1-6])\s*轴"           # 1轴, 1 轴
+    r"|轴\s*([1-6])"           # 轴1, 轴 1
+    r"|关节\s*([一二三四五六])" # 关节一
+    r")\s*"
+    r"(正方向|负方向|反方向|正|负|反|[+\-])?\s*"
+    r"(?:旋转|转|转动|运动|移动)?\s*"
+    r"([\d.]+)\s*(?:度|°)",
+    re.I,
+)
+
 AXIS_DIRECTIONS = {
     "x+": ("x", "+", ("x正", "x+", "x 轴正", "x轴正", "x正方向", "x轴正方向")),
     "x-": ("x", "-", ("x负", "x-", "x 轴负", "x轴负", "x负方向", "x轴负方向")),
@@ -288,6 +305,8 @@ def _looks_like_speed_suffix_only(text: str) -> bool:
 def _has_movement_intent(text: str) -> bool:
     """Return True when text describes motion, not speed-only tuning."""
     raw = text.strip()
+    if JOINT_CONTROL_RE.search(raw):
+        return True
     if _motion_pattern(raw):
         return True
     if re.search(
@@ -356,6 +375,31 @@ def parse_text(text: str) -> dict[str, Any] | None:
             "skill": "set_speed",
             "params": {"speed_percent": speed},
             "explain": f"设置速度为 {speed}%",
+        }
+
+    # 关节控制（J1-J6，支持 关节1/1轴/轴1/关节一等说法）
+    joint_match = JOINT_CONTROL_RE.search(raw)
+    if joint_match:
+        # groups 1-5 是关节编号的各种写法，取第一个非空
+        joint_raw = None
+        for i in range(1, 6):
+            if joint_match.group(i):
+                joint_raw = joint_match.group(i).strip()
+                break
+        if joint_raw in _JOINT_CN:
+            joint_raw = _JOINT_CN[joint_raw]
+        joint = f"J{joint_raw}"
+        direction_text = (joint_match.group(6) or "+").strip()
+        angle = float(joint_match.group(7))
+        direction = "-" if direction_text in {"负方向", "反方向", "负", "反", "-"} else "+"
+        speed = _speed(raw)
+        params: dict[str, Any] = {"joint": joint, "direction": direction, "angle_deg": angle}
+        if speed is not None:
+            params["speed_percent"] = speed
+        return {
+            "skill": "move_joint",
+            "params": params,
+            "explain": f"关节 {joint} {'正' if direction == '+' else '负'}方向旋转 {angle} 度",
         }
 
     # 读取 / 记录位姿

@@ -3,7 +3,7 @@ import json
 from typing import Any
 
 from robot_session import RobotSession
-from skills import SKILL_HANDLERS, load_named_points, load_registry, validate_skill_plan
+from skills import SKILL_HANDLERS, check_workspace_boundary, load_named_points, load_registry, validate_skill_plan
 
 
 def execute_skill(
@@ -24,14 +24,24 @@ def execute_skill(
     if dry_run or session is None:
         return validated
 
-    handler = SKILL_HANDLERS.get(skill_name)
-    if handler is None:
-        raise ValueError(f"Skill 未实现: {skill_name}")
-
     context = {
         "named_points": load_named_points(),
         "registry": registry,
     }
+
+    # Workspace boundary check: reject targets outside the safety zone
+    check_workspace_boundary(
+        skill_name,
+        params,
+        session.get_pose(),
+        context["named_points"],
+        current_joints=session.get_joints(),
+    )
+
+    handler = SKILL_HANDLERS.get(skill_name)
+    if handler is None:
+        raise ValueError(f"Skill 未实现: {skill_name}")
+
     skill_result = handler(session, params, context)
     if skill_result:
         validated = {**validated, "result": skill_result}

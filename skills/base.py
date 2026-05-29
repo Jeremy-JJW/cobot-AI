@@ -128,3 +128,172 @@ def validate_skill_plan(plan: dict[str, Any], registry: dict[str, Any] | None = 
         "params": validated,
         "explain": plan.get("explain", skills[skill_name]["description"]),
     }
+
+
+# ── Workspace boundary checking ──
+
+SAFETY_ZONES_PATH = Path(__file__).resolve().parent.parent / "safety_zones.json"
+
+_DEFAULT_SAFETY_ZONES: dict[str, Any] = {
+    "safety_zones": {
+        "default": {
+            "x": {"min": -600.0, "max": 600.0},
+            "y": {"min": -600.0, "max": 600.0},
+            "z": {"min": 50.0, "max": 700.0},
+        }
+    }
+}
+
+_MOVEMENT_SKILLS = {
+    "move_relative_linear",
+    "move_relative_sequence",
+    "move_to_named_point",
+    "move_between_points",
+}
+
+_AXIS_INDEX = {"x": 0, "y": 1, "z": 2}
+_AXIS_NAMES = {0: "X", 1: "Y", 2: "Z"}
+
+
+def load_safety_zones() -> dict[str, Any]:
+    if not SAFETY_ZONES_PATH.exists():
+        return _DEFAULT_SAFETY_ZONES["safety_zones"]
+    try:
+        data = json.loads(SAFETY_ZONES_PATH.read_text(encoding="utf-8"))
+        return data.get("safety_zones", data)
+    except (json.JSONDecodeError, OSError):
+        return _DEFAULT_SAFETY_ZONES["safety_zones"]
+
+
+def _compute_targets(
+    skill_name: str,
+    params: dict[str, Any],
+    current_pose: list[float],
+    named_points: dict[str, list[float]],
+) -> list[list[float]]:
+    """Compute all [x,y,z] targets that the robot will pass through."""
+    targets: list[list[float]] = []
+
+    if skill_name == "move_relative_linear":
+        axis = params["axis"]
+        offset = float(params["distance_mm"])
+        if params["direction"] == "-":
+            offset = -offset
+        target = list(current_pose[:3])
+        target[_AXIS_INDEX[axis]] += offset
+        targets.append(target)
+
+    elif skill_name == "move_relative_sequence":
+        cursor = list(current_pose[:3])
+        for step in params["steps"]:
+            offset = float(step["distance_mm"])
+            if step["direction"] == "-":
+                offset = -offset
+            cursor[_AXIS_INDEX[step["axis"]]] += offset
+            targets.append(list(cursor))
+
+    elif skill_name == "move_to_named_point":
+        pose = get_point_pose(params["point"], named_points)
+        targets.append(pose[:3])
+
+    elif skill_name == "move_between_points":
+        from_pose = get_point_pose(params["from_point"], named_points)
+        to_pose = get_point_pose(params["to_point"], named_points)
+        targets.append(from_pose[:3])
+        targets.append(to_pose[:3])
+
+    return targets
+
+
+_JOINT_INDEX = {"J1": 0, "J2": 1, "J3": 2, "J4": 3, "J5": 4, "J6": 5}
+
+
+def _check_joint_boundary(
+    params: dict[str, Any],
+    current_joints: list[float] | None,
+) -> None:
+    """Check joint angle limits for move_joint skill."""
+    if current_joints is None:
+        return
+    zones = load_safety_zones()
+    zone = next(iter(zones.values()))
+    joint_limits = zone.get("joints", {})
+    if not joint_limits:
+        return
+
+    joint = params["joint"]
+    if joint not in joint_limits:
+        return
+
+    idx = _JOINT_INDEX[joint]
+    offset = float(params["angle_deg"])
+    if params["direction"] == "-":
+        offset = -offset
+    target_angle = current_joints[idx] + offset
+
+    lo = float(joint_limits[joint]["min"])
+    hi = float(joint_limits[joint]["max"])
+
+    if target_angle < lo:
+        raise ValueError(
+            f"目标关节 {joint} 角度 {target_angle:.1f}° 低于安全下限 {lo:.0f}°，已拦截"
+        )
+    if target_angle > hi:
+        raise ValueError(
+            f"目标关节 {joint} 角度 {target_angle:.1f}° 超出安全上限 {hi:.0f}°，已拦截"
+        )
+
+
+def check_workspace_boundary(
+    skill_name: str,
+    params: dict[str, Any],
+    current_pose: list[float],
+    named_points: dict[str, list[float]],
+    current_joints: list[float] | None = None,
+) -> None:
+    """Raise ValueError if any target position is outside the safety zone."""
+    if skill_name == "move_joint":
+        _check_joint_boundary(params, current_joints)
+        return
+
+    if skill_name not in _MOVEMENT_SKILLS:
+        return
+
+    zones = load_safety_zones()
+    zone = next(iter(zones.values()))
+    if "x" not in zone or "y" not in zone or "z" not in zone:
+        return  # malformed config, skip check
+
+    bounds = {
+        "X": (float(zone["x"]["min"]), float(zone["x"]["max"])),
+        "Y": (float(zone["y"]["min"]), float(zone["y"]["max"])),
+        "Z": (float(zone["z"]["min"]), float(zone["z"]["max"])),
+    }
+
+    targets = _compute_targets(skill_name, params, current_pose, named_points)
+
+    max_radius = float(zone.get("max_radius_mm", 0))
+
+    for target in targets:
+        x, y, z = target[0], target[1], target[2]
+
+        # Axis-aligned check
+        for i, axis_name in _AXIS_NAMES.items():
+            value = target[i]
+            lo, hi = bounds[axis_name]
+            if value < lo:
+                raise ValueError(
+                    f"目标 {axis_name}={value:.1f}mm 低于安全下限 {lo:.0f}mm，已拦截"
+                )
+            if value > hi:
+                raise ValueError(
+                    f"目标 {axis_name}={value:.1f}mm 超出安全上限 {hi:.0f}mm，已拦截"
+                )
+
+        # Radial distance check (workspace is spherical, not cubic)
+        if max_radius > 0:
+            radius = (x ** 2 + y ** 2) ** 0.5
+            if radius > max_radius:
+                raise ValueError(
+                    f"目标水平距离 {radius:.0f}mm 超出工作半径 {max_radius:.0f}mm，已拦截"
+                )
