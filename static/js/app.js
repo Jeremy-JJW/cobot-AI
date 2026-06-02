@@ -103,18 +103,15 @@ async function requestJson(url, payload) {
   return data;
 }
 
-let _backendDown = false;
-let _consecutiveFailures = 0;
-
 async function refreshStatus() {
   try {
-    const response = await fetch("/api/status");
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    const response = await fetch("/api/status", { signal: controller.signal });
+    clearTimeout(timer);
     const data = await response.json();
     _consecutiveFailures = 0;
-    if (_backendDown) {
-      _backendDown = false;
-      appendBot("后端服务已恢复连接");
-    }
+    window._lastKnownBackendOk = true;
     if (data.ok && !busy) {
       if (data.alarm) {
         setStatus("报警");
@@ -125,17 +122,7 @@ async function refreshStatus() {
       }
     }
   } catch (_) {
-    _consecutiveFailures++;
-    // 连续 2 次（约 10 秒）连不上再提示，避免误报
-    if (_consecutiveFailures >= 2 && !_backendDown) {
-      _backendDown = true;
-      setStatus("未连接");
-      appendBot(
-        "无法连接到后端服务，请确认已启动 web_app.py\n" +
-        "启动命令：.venv\\Scripts\\python web_app.py",
-        { isError: true }
-      );
-    }
+    // 静默处理：偶尔超时不影响实际使用，状态等下次轮询自动恢复
   }
 }
 
@@ -300,3 +287,21 @@ setBusy = function (nextBusy) {
   }
   micBtn.disabled = nextBusy;
 };
+
+/* ── Restart ── */
+document.getElementById("restartBtn").addEventListener("click", async () => {
+  if (busy) return;
+  if (!confirm("确定要重启服务吗？会话将短暂中断。")) return;
+  try {
+    setBusy(true);
+    await fetch("/api/restart", { method: "POST" });
+    appendBot("服务正在重启，页面将自动恢复...", { thinking: true });
+    // 等待后端重启后刷新页面
+    setTimeout(() => {
+      window.location.reload();
+    }, 3000);
+  } catch (_) {
+    // 重启时 fetch 可能断开，直接刷新页面重连
+    setTimeout(() => window.location.reload(), 1500);
+  }
+});

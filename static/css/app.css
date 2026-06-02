@@ -68,6 +68,27 @@ body {
   gap: 12px;
 }
 
+.restart-btn {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.restart-btn:hover {
+  background: #f0f0f0;
+  color: var(--text);
+}
+.restart-btn:active {
+  background: #e5e5e5;
+}
+
 .status-pill {
   display: inline-flex;
   align-items: center;

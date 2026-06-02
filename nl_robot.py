@@ -21,7 +21,7 @@ from robot_runner import run_once
 
 def main() -> None:
     load_dotenv()
-    parser = argparse.ArgumentParser(description="自然语言控制 Dobot（Skill 架构）")
+    parser = argparse.ArgumentParser(description="自然语言控制 VA 协作机械臂（Skill 架构）")
     parser.add_argument("command", nargs="?", help="一条自然语言指令；省略则进入交互模式")
     parser.add_argument("--dry-run", action="store_true", help="只解析并打印，不连接机械臂")
     parser.add_argument(

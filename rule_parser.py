@@ -377,6 +377,13 @@ def parse_text(text: str) -> dict[str, Any] | None:
             "explain": f"设置速度为 {speed}%",
         }
 
+    # 明确拒识：画画/绘画类（排除具体的 画圆/画弧/画方 等轨迹）
+    if re.search(r"画(?:一[幅个]?)?画|绘画", raw) and not re.search(
+        r"画圆|圆形|圆弧|画弧|方形|正方形|三角形|菱形|十字|波浪|锯齿",
+        raw,
+    ):
+        return None
+
     # 关节控制（J1-J6，支持 关节1/1轴/轴1/关节一等说法）
     joint_match = JOINT_CONTROL_RE.search(raw)
     if joint_match:
@@ -426,6 +433,28 @@ def parse_text(text: str) -> dict[str, Any] | None:
             "params": params,
             "explain": f"按顺序移动: {' → '.join(parts)}",
         }
+
+    # 点到点：先去X再到Y（必须在 "序列意图 → return None" 之前匹配）
+    between = re.search(
+        r"(?:先)?\s*(?:去|到|回|回到|移动(?:到)?)\s*([a-zA-Z0-9_]+)\s*点?\s*"
+        r"(?:再|然后|接着|之后)?\s*"
+        r"(?:去|到|回|回到|移动(?:到)?)\s*([a-zA-Z0-9_]+)\s*点?",
+        raw,
+        re.I,
+    )
+    if between:
+        from_point = resolve_point_name(between.group(1))
+        to_point = resolve_point_name(between.group(2))
+        speed = _speed(raw)
+        params = {"from_point": from_point, "to_point": to_point}
+        if speed is not None:
+            params["speed_percent"] = speed
+        return {
+            "skill": "move_between_points",
+            "params": params,
+            "explain": f"从 {from_point} 移动到 {to_point}",
+        }
+
     if SEQUENCE_INTENT_RE.search(raw):
         # 多步意图存在但无法完整解析时，不再降级成单步/预置路线。
         # 例外：「移动 …，速度 20%」这类逗号后只是调速说明，仍按单步处理。
@@ -454,7 +483,7 @@ def parse_text(text: str) -> dict[str, Any] | None:
             "explain": f"执行预置复合运动路线 {pattern}",
         }
 
-    # 点到点（必须在「去命名点」之前匹配）
+    # 点到点：从A到B（兼容旧说法）
     between = re.search(
         r"从\s*([a-zA-Z0-9_]+)\s*点?\s*(?:移动|运动)?\s*到\s*([a-zA-Z0-9_]+)\s*点?",
         raw,

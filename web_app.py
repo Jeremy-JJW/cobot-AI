@@ -1,5 +1,7 @@
 """Flask Web demo: natural language robot control UI."""
 import os
+import subprocess
+import sys
 import threading
 import time
 
@@ -26,7 +28,7 @@ _robot_lock = threading.Lock()
 _robot_session: RobotSession | None = None
 _robot_status = "未连接"
 _logger = setup_flask_logger()
-
+                                    
 
 def _set_status(status: str) -> None:
     global _robot_status
@@ -82,7 +84,8 @@ def api_status():
     connected = session is not None and session.dashboard is not None
     alarm = False
     robot_mode = -1
-    if connected:
+    # 执行中时跳过 get_robot_mode，避免因 TCP 忙导致请求卡住
+    if connected and _robot_status != "执行中":
         try:
             robot_mode = session.get_robot_mode()
             alarm = robot_mode == 9
@@ -243,8 +246,16 @@ def api_run_once():
 def api_clear_alarm():
     with _robot_lock:
         session = _get_session()
+        # 如果 session 断开或不存在，自动重连
         if session is None or session.dashboard is None:
-            return jsonify({"ok": False, "error": "未连接机械臂"}), 400
+            ip = os.environ.get("ROBOT_IP", "192.168.5.1")
+            try:
+                new_session = RobotSession(ip)
+                new_session.connect()
+                _store_session(new_session)
+                session = new_session
+            except Exception as exc:
+                return jsonify({"ok": False, "error": f"无法连接机械臂: {exc}"}), 400
         try:
             session.clear_alarm()
             _set_status("已就绪")
@@ -253,6 +264,28 @@ def api_clear_alarm():
             return jsonify({"ok": False, "error": str(exc)}), 500
         except Exception as exc:
             return jsonify({"ok": False, "error": f"清除报警失败: {exc}"}), 500
+
+
+@app.post("/api/restart")
+def api_restart():
+    """重启 Flask 服务。返回响应后启动新进程替换当前进程。"""
+    _logger.info("收到重启请求，正在重启服务...")
+
+    def _do_restart() -> None:
+        # 等待响应返回前端后再启动新进程
+        import time as _time
+        _time.sleep(0.5)
+        try:
+            subprocess.Popen(
+                [sys.executable, *sys.argv],
+                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
+            )
+        except Exception:
+            pass
+        os._exit(0)
+
+    threading.Thread(target=_do_restart, daemon=False).start()
+    return jsonify({"ok": True, "message": "服务正在重启，请稍候..."})
 
 
 def main() -> None:
