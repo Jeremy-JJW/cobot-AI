@@ -1,4 +1,4 @@
-"""自然语言 -> 动作 JSON（OpenAI 兼容接口）。"""
+"""自然語言 -> 動作 JSON（OpenAI 兼容接口）。"""
 import json
 import os
 from pathlib import Path
@@ -19,7 +19,7 @@ def load_named_points() -> dict:
 def _build_system_prompt(named_points: dict) -> str:
     base = PROMPT_PATH.read_text(encoding="utf-8")
     if named_points:
-        base += "\n\n可用命名点位（优先使用 point 字段引用）:\n"
+        base += "\n\n可用命名點位（優先使用 point 字段引用）:\n"
         base += json.dumps(named_points, ensure_ascii=False, indent=2)
     return base
 
@@ -27,7 +27,7 @@ def _build_system_prompt(named_points: dict) -> str:
 def plan_from_text(user_text: str) -> dict:
     api_key = os.environ.get("OPENAI_API_KEY", "").strip()
     if not api_key:
-        raise RuntimeError("请设置环境变量 OPENAI_API_KEY")
+        raise RuntimeError("請設置環境變量 OPENAI_API_KEY")
 
     base_url = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
     model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
@@ -54,46 +54,46 @@ def plan_from_text(user_text: str) -> dict:
         )
     except requests.ConnectionError:
         raise RuntimeError(
-            "无法连接到 AI 模型服务，请检查网络连接和 API 地址配置"
+            "無法連接到 AI 模型服務，請檢查網絡連接和 API 地址配置"
         ) from None
     except requests.Timeout:
         raise RuntimeError(
-            "AI 模型服务响应超时（30 秒），请稍后重试，"
-            "或检查 OPENAI_BASE_URL 和 OPENAI_MODEL 配置"
+            "AI 模型服務響應超時（30 秒），請稍後重試，"
+            "或檢查 OPENAI_BASE_URL 和 OPENAI_MODEL 配置"
         ) from None
     except requests.RequestException as exc:
-        raise RuntimeError(f"AI 模型服务请求异常: {exc}") from exc
+        raise RuntimeError(f"AI 模型服務請求異常: {exc}") from exc
 
     try:
         resp.raise_for_status()
     except requests.HTTPError as exc:
         status = resp.status_code
         if status == 401:
-            raise RuntimeError("AI 模型 API 密钥认证失败，请检查 OPENAI_API_KEY") from exc
+            raise RuntimeError("AI 模型 API 密鑰認證失敗，請檢查 OPENAI_API_KEY") from exc
         if status == 429:
-            raise RuntimeError("AI 模型服务请求太频繁，请稍后重试") from exc
+            raise RuntimeError("AI 模型服務請求太頻繁，請稍後重試") from exc
         if 500 <= status < 600:
-            raise RuntimeError(f"AI 模型服务暂时不可用（HTTP {status}），请稍后重试") from exc
-        raise RuntimeError(f"AI 模型服务返回错误（HTTP {status}）: {resp.text[:200]}") from exc
+            raise RuntimeError(f"AI 模型服務暫時不可用（HTTP {status}），請稍後重試") from exc
+        raise RuntimeError(f"AI 模型服務返回錯誤（HTTP {status}）: {resp.text[:200]}") from exc
 
     try:
         body = resp.json()
     except json.JSONDecodeError as exc:
-        raise RuntimeError(f"AI 模型服务返回了无法解析的响应: {resp.text[:200]}") from exc
+        raise RuntimeError(f"AI 模型服務返回了無法解析的響應: {resp.text[:200]}") from exc
 
     try:
         content = body["choices"][0]["message"]["content"]
     except (KeyError, IndexError) as exc:
-        raise RuntimeError(f"AI 模型服务返回格式异常: {str(body)[:200]}") from exc
+        raise RuntimeError(f"AI 模型服務返回格式異常: {str(body)[:200]}") from exc
 
     try:
         plan = json.loads(content)
     except json.JSONDecodeError as exc:
-        raise RuntimeError(f"AI 模型返回了无法解析的 JSON: {content[:300]}") from exc
+        raise RuntimeError(f"AI 模型返回了無法解析的 JSON: {content[:300]}") from exc
     if "skill" in plan:
         if not plan.get("skill"):
-            raise ValueError(f"模型无法识别指令: {plan.get('explain', content)}")
+            raise ValueError(f"模型無法識別指令: {plan.get('explain', content)}")
         return plan
     if "steps" not in plan:
-        raise ValueError(f"模型返回格式错误: {content}")
+        raise ValueError(f"模型返回格式錯誤: {content}")
     return plan

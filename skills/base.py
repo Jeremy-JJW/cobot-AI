@@ -7,12 +7,12 @@ POSITIONS_PATH = Path(__file__).resolve().parent.parent / "positions.json"
 
 POINT_ALIASES = {
     "a": "point_a",
-    "a点": "point_a",
+    "a點": "point_a",
     "b": "point_b",
-    "b点": "point_b",
+    "b點": "point_b",
     "home": "home",
-    "原点": "home",
-    "零点": "home",
+    "原點": "home",
+    "零點": "home",
 }
 
 
@@ -37,7 +37,7 @@ def resolve_point_name(name: str) -> str:
 def get_point_pose(name: str, named_points: dict[str, list[float]]) -> list[float]:
     resolved = resolve_point_name(name)
     if resolved not in named_points:
-        raise ValueError(f"未知点位: {name}，可用: {', '.join(named_points.keys())}")
+        raise ValueError(f"未知點位: {name}，可用: {', '.join(named_points.keys())}")
     return list(named_points[resolved])
 
 
@@ -54,7 +54,7 @@ def validate_skill_plan(plan: dict[str, Any], registry: dict[str, Any] | None = 
     skill_name = plan.get("skill")
     skills = registry.get("skills", {})
     if skill_name not in skills:
-        raise ValueError(f"未注册的 Skill: {skill_name}")
+        raise ValueError(f"未註冊的 Skill: {skill_name}")
 
     schema = skills[skill_name]["params"]
     raw_params = plan.get("params") or {}
@@ -67,27 +67,27 @@ def validate_skill_plan(plan: dict[str, Any], registry: dict[str, Any] | None = 
         elif "default" in rule:
             value = rule["default"]
         elif rule.get("required"):
-            raise ValueError(f"Skill {skill_name} 缺少参数: {key}")
+            raise ValueError(f"Skill {skill_name} 缺少參數: {key}")
         else:
             continue
 
         if rule.get("type") == "string" and "enum" in rule and value not in rule["enum"]:
-            raise ValueError(f"参数 {key} 只能是 {rule['enum']}")
+            raise ValueError(f"參數 {key} 只能是 {rule['enum']}")
         if rule.get("type") == "array":
             validated[key] = raw_params.get(key, value)
             continue
         if rule.get("type") == "number":
             if "min" in rule and value < rule["min"]:
-                raise ValueError(f"参数 {key} 不能小于 {rule['min']}")
+                raise ValueError(f"參數 {key} 不能小於 {rule['min']}")
             if "max" in rule and value > rule["max"]:
-                raise ValueError(f"参数 {key} 不能大于 {rule['max']}")
+                raise ValueError(f"參數 {key} 不能大於 {rule['max']}")
 
         validated[key] = value
 
     if skill_name == "move_relative_linear":
         max_distance = limits.get("max_distance_mm", 200)
         if validated["distance_mm"] > max_distance:
-            raise ValueError(f"单次移动不能超过 {max_distance}mm")
+            raise ValueError(f"單次移動不能超過 {max_distance}mm")
 
     if skill_name == "move_relative_sequence":
         steps = raw_params.get("steps")
@@ -100,7 +100,7 @@ def validate_skill_plan(plan: dict[str, Any], registry: dict[str, Any] | None = 
         validated_steps: list[dict[str, Any]] = []
         for index, step in enumerate(steps, start=1):
             if not isinstance(step, dict):
-                raise ValueError(f"第 {index} 步格式无效")
+                raise ValueError(f"第 {index} 步格式無效")
             axis = str(step.get("axis", "")).lower()
             direction = str(step.get("direction", ""))
             if axis not in {"x", "y", "z"}:
@@ -109,7 +109,7 @@ def validate_skill_plan(plan: dict[str, Any], registry: dict[str, Any] | None = 
                 raise ValueError(f"第 {index} 步 direction 只能是 + 或 -")
             distance = float(step["distance_mm"])
             if distance < 0.1 or distance > max_distance:
-                raise ValueError(f"第 {index} 步距离必须在 0.1～{max_distance}mm")
+                raise ValueError(f"第 {index} 步距離必須在 0.1～{max_distance}mm")
             validated_steps.append(
                 {"axis": axis, "direction": direction, "distance_mm": distance}
             )
@@ -236,11 +236,11 @@ def _check_joint_boundary(
 
     if target_angle < lo:
         raise ValueError(
-            f"目标关节 {joint} 角度 {target_angle:.1f}° 低于安全下限 {lo:.0f}°，已拦截"
+            f"目標關節 {joint} 角度 {target_angle:.1f}° 低於安全下限 {lo:.0f}°，已攔截"
         )
     if target_angle > hi:
         raise ValueError(
-            f"目标关节 {joint} 角度 {target_angle:.1f}° 超出安全上限 {hi:.0f}°，已拦截"
+            f"目標關節 {joint} 角度 {target_angle:.1f}° 超出安全上限 {hi:.0f}°，已攔截"
         )
 
 
@@ -283,11 +283,11 @@ def check_workspace_boundary(
             lo, hi = bounds[axis_name]
             if value < lo:
                 raise ValueError(
-                    f"目标 {axis_name}={value:.1f}mm 低于安全下限 {lo:.0f}mm，已拦截"
+                    f"目標 {axis_name}={value:.1f}mm 低於安全下限 {lo:.0f}mm，已攔截"
                 )
             if value > hi:
                 raise ValueError(
-                    f"目标 {axis_name}={value:.1f}mm 超出安全上限 {hi:.0f}mm，已拦截"
+                    f"目標 {axis_name}={value:.1f}mm 超出安全上限 {hi:.0f}mm，已攔截"
                 )
 
         # Radial distance check (workspace is spherical, not cubic)
@@ -295,5 +295,5 @@ def check_workspace_boundary(
             radius = (x ** 2 + y ** 2) ** 0.5
             if radius > max_radius:
                 raise ValueError(
-                    f"目标水平距离 {radius:.0f}mm 超出工作半径 {max_radius:.0f}mm，已拦截"
+                    f"目標水平距離 {radius:.0f}mm 超出工作半徑 {max_radius:.0f}mm，已攔截"
                 )

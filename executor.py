@@ -1,4 +1,4 @@
-"""Skill 白名单执行器：只运行 skill_registry.json 中注册的动作。"""
+"""Skill 白名單執行器：只運行 skill_registry.json 中註冊的動作。"""
 import json
 from typing import Any
 
@@ -18,8 +18,8 @@ def execute_skill(
     explain = validated["explain"]
 
     print(f"Skill: {skill_name}")
-    print(f"说明: {explain}")
-    print(f"参数: {json.dumps(params, ensure_ascii=False)}")
+    print(f"說明: {explain}")
+    print(f"參數: {json.dumps(params, ensure_ascii=False)}")
 
     if dry_run or session is None:
         return validated
@@ -40,7 +40,7 @@ def execute_skill(
 
     handler = SKILL_HANDLERS.get(skill_name)
     if handler is None:
-        raise ValueError(f"Skill 未实现: {skill_name}")
+        raise ValueError(f"Skill 未實現: {skill_name}")
 
     skill_result = handler(session, params, context)
     if skill_result:

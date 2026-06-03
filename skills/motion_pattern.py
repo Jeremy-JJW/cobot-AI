@@ -122,5 +122,5 @@ def run(session, params: dict, context: dict) -> None:
         return
 
     if pattern not in routes:
-        raise ValueError(f"未实现的运动路线: {pattern}")
+        raise ValueError(f"未實現的運動路線: {pattern}")
     _run_lines(session, base, routes[pattern], speed)

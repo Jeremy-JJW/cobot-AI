@@ -1,13 +1,13 @@
 """
-自然语言控制机械臂 — 入口脚本
+自然語言控制機械臂 — 入口腳本
 
-默认启用规则 + 大模型兜底（需配置 OPENAI_API_KEY）。
-加 --no-llm 则仅规则解析，不调用 API。
+默認啓用規則 + 大模型兜底（需配置 OPENAI_API_KEY）。
+加 --no-llm 則僅規則解析，不調用 API。
 
 用法:
-  .venv\\Scripts\\python nl_robot.py --dry-run "向 Z 正方向移动 100 毫米"
-  .venv\\Scripts\\python nl_robot.py "去 A 点"
-  .venv\\Scripts\\python nl_robot.py --no-llm "仅规则解析..."
+  .venv\\Scripts\\python nl_robot.py --dry-run "向 Z 正方向移動 100 毫米"
+  .venv\\Scripts\\python nl_robot.py "去 A 點"
+  .venv\\Scripts\\python nl_robot.py --no-llm "僅規則解析..."
 """
 import argparse
 import os
@@ -21,13 +21,13 @@ from robot_runner import run_once
 
 def main() -> None:
     load_dotenv()
-    parser = argparse.ArgumentParser(description="自然语言控制 VA 协作机械臂（Skill 架构）")
-    parser.add_argument("command", nargs="?", help="一条自然语言指令；省略则进入交互模式")
-    parser.add_argument("--dry-run", action="store_true", help="只解析并打印，不连接机械臂")
+    parser = argparse.ArgumentParser(description="自然語言控制 VA 協作機械臂（Skill 架構）")
+    parser.add_argument("command", nargs="?", help="一條自然語言指令；省略則進入交互模式")
+    parser.add_argument("--dry-run", action="store_true", help="只解析並打印，不連接機械臂")
     parser.add_argument(
         "--no-llm",
         action="store_true",
-        help="仅规则解析，不使用大模型（默认已启用 LLM 兜底）",
+        help="僅規則解析，不使用大模型（默認已啓用 LLM 兜底）",
     )
     parser.add_argument("--ip", default=os.environ.get("ROBOT_IP", "192.168.5.1"))
     args = parser.parse_args()
@@ -52,14 +52,14 @@ def main() -> None:
         try:
             cli_run_once(args.command)
         except ValueError as exc:
-            print(f"错误: {exc}", file=sys.stderr)
+            print(f"錯誤: {exc}", file=sys.stderr)
             sys.exit(1)
         except Exception as exc:
-            print(f"错误: {exc}", file=sys.stderr)
+            print(f"錯誤: {exc}", file=sys.stderr)
             sys.exit(1)
         return
 
-    print("自然语言机械臂控制（规则 + LLM，输入 quit 退出）")
+    print("自然語言機械臂控制（規則 + LLM，輸入 quit 退出）")
     session: RobotSession | None = None
     try:
         while True:
@@ -75,9 +75,9 @@ def main() -> None:
             try:
                 session = cli_run_once(text, session, keep_alive=True)
             except ValueError as exc:
-                print(f"错误: {exc}", file=sys.stderr)
+                print(f"錯誤: {exc}", file=sys.stderr)
             except Exception as exc:
-                print(f"错误: {exc}", file=sys.stderr)
+                print(f"錯誤: {exc}", file=sys.stderr)
                 if session is not None:
                     try:
                         session.disconnect()

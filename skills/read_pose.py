@@ -6,7 +6,7 @@ from skills.base import POSITIONS_PATH
 
 def run(session, params: dict, context: dict) -> dict:
     pose = session.get_pose()
-    print(f"当前位姿: {pose}")
+    print(f"當前位姿: {pose}")
 
     save_as = params.get("save_as")
     if save_as:

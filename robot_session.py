@@ -1,4 +1,4 @@
-"""Dobot TCP 会话封装：连接、使能、运动、读位姿、停止。"""
+"""Dobot TCP 會話封裝：連接、使能、運動、讀位姿、停止。"""
 import re
 import socket
 import threading
@@ -10,30 +10,30 @@ from DobotDemo import DobotDemo
 
 def parse_numbers(value_recv: str) -> list[int]:
     if "Not Tcp" in value_recv:
-        raise RuntimeError("机械臂未处于 TCP 控制模式，请先在示教器切换到 TCP/IP 远程控制")
+        raise RuntimeError("機械臂未處於 TCP 控制模式，請先在示教器切換到 TCP/IP 遠程控制")
     nums = [int(n) for n in re.findall(r"-?\d+", value_recv)]
     if not nums:
-        raise RuntimeError(f"无法解析控制器返回: {value_recv}")
+        raise RuntimeError(f"無法解析控制器返回: {value_recv}")
     return nums
 
 
 def parse_pose(value_recv: str) -> list[float]:
     if "Not Tcp" in value_recv:
-        raise RuntimeError("机械臂未处于 TCP 控制模式，请先在示教器切换到 TCP/IP 远程控制")
+        raise RuntimeError("機械臂未處於 TCP 控制模式，請先在示教器切換到 TCP/IP 遠程控制")
     nums = re.findall(r"-?\d+\.?\d*", value_recv)
-    # GetPose 返回格式通常为: 0,{x,y,z,rx,ry,rz}，首项是状态码而非坐标
+    # GetPose 返回格式通常爲: 0,{x,y,z,rx,ry,rz}，首項是狀態碼而非座標
     if len(nums) >= 7:
         status = int(float(nums[0]))
         if status != 0:
-            raise RuntimeError(f"读取位姿失败: {value_recv}")
+            raise RuntimeError(f"讀取位姿失敗: {value_recv}")
         return [float(x) for x in nums[1:7]]
     if len(nums) < 6:
-        raise RuntimeError(f"无法解析位姿: {value_recv}")
+        raise RuntimeError(f"無法解析位姿: {value_recv}")
     return [float(x) for x in nums[:6]]
 
 
 class RobotSession(DobotDemo):
-    """基于 DobotDemo.py 的连接/反馈逻辑，对外提供稳定运动 API。"""
+    """基於 DobotDemo.py 的連接/反饋邏輯，對外提供穩定運動 API。"""
 
     def __init__(self, ip):
         super().__init__(ip)
@@ -44,8 +44,8 @@ class RobotSession(DobotDemo):
     def _ensure_socket_connected(self, api, port: int, label: str) -> None:
         if api is None or getattr(api, "socket_dobot", 0) == 0:
             raise RuntimeError(
-                f"连接机械臂 {self.ip}:{port} 失败（{label}），"
-                "请检查 IP、网络、示教器 TCP/IP 远程控制和端口占用"
+                f"連接機械臂 {self.ip}:{port} 失敗（{label}），"
+                "請檢查 IP、網絡、示教器 TCP/IP 遠程控制和端口占用"
             )
 
     def connect(self) -> None:
@@ -57,30 +57,30 @@ class RobotSession(DobotDemo):
         self.dashboard = DobotApiDashboard(self.ip, self.dashboardPort)
         self._ensure_socket_connected(self.dashboard, self.dashboardPort, "控制端口")
 
-        # 连通性检查：发一条测试指令，5 秒无响应则报错
+        # 連通性檢查：發一條測試指令，5 秒無響應則報錯
         sock = getattr(self.dashboard, "socket_dobot", 0)
         if sock and sock != 0:
             try:
                 sock.settimeout(5)
                 sock.send(b"GetPose()\r\n")
                 test_data = sock.recv(1024)
-                sock.settimeout(None)  # 恢复阻塞模式，后续 wait_reply 正常运作
+                sock.settimeout(None)  # 恢復阻塞模式，後續 wait_reply 正常運作
                 if not test_data or len(test_data) == 0:
-                    raise RuntimeError("机械臂无响应")
+                    raise RuntimeError("機械臂無響應")
             except (OSError, socket.timeout):
                 self.disconnect()
                 raise RuntimeError(
-                    f"连接机械臂 {self.ip}:{self.dashboardPort} 失败，"
-                    "请检查：\n"
-                    "1. 机械臂 IP 是否正确\n"
-                    "2. 网络是否可达\n"
-                    "3. 示教器是否已切换到 TCP/IP 远程控制\n"
-                    "4. 示教器 29999/30004 端口是否被其他软件占用"
+                    f"連接機械臂 {self.ip}:{self.dashboardPort} 失敗，"
+                    "請檢查：\n"
+                    "1. 機械臂 IP 是否正確\n"
+                    "2. 網絡是否可達\n"
+                    "3. 示教器是否已切換到 TCP/IP 遠程控制\n"
+                    "4. 示教器 29999/30004 端口是否被其他軟件佔用"
                 ) from None
 
         try:
             self.feedFour = DobotApiFeedBack(self.ip, self.feedPortFour)
-            self._ensure_socket_connected(self.feedFour, self.feedPortFour, "反馈端口")
+            self._ensure_socket_connected(self.feedFour, self.feedPortFour, "反饋端口")
         except Exception:
             self.disconnect()
             raise
@@ -116,7 +116,7 @@ class RobotSession(DobotDemo):
             return
         result = parse_numbers(self.dashboard.EnableRobot())
         if result[0] != 0:
-            raise RuntimeError("使能失败，请检查 29999 端口是否被占用")
+            raise RuntimeError("使能失敗，請檢查 29999 端口是否被佔用")
         self._enabled = True
 
     def disable(self) -> None:
@@ -131,32 +131,32 @@ class RobotSession(DobotDemo):
     def set_speed(self, percent: int) -> None:
         result = parse_numbers(self.dashboard.SpeedFactor(int(percent)))
         if result[0] != 0:
-            raise RuntimeError(f"设置速度失败: {result}")
+            raise RuntimeError(f"設置速度失敗: {result}")
 
     def get_pose(self) -> list[float]:
         return parse_pose(self.dashboard.GetPose())
 
     def get_robot_mode(self) -> int:
-        """返回机器人模式：5=已使能就绪, 9=报警。从反馈线程数据读取。"""
+        """返回機器人模式：5=已使能就緒, 9=報警。從反饋線程數據讀取。"""
         try:
             return self.feedData.robotMode
         except Exception:
             return -1
 
     def clear_alarm(self) -> None:
-        """清除控制器报警状态。"""
+        """清除控制器報警狀態。"""
         result = parse_numbers(self.dashboard.ClearError())
         if result[0] != 0:
-            raise RuntimeError(f"清除报警失败: {result}")
+            raise RuntimeError(f"清除報警失敗: {result}")
 
     def get_joints(self) -> list[float]:
-        """读取当前关节角度 [J1,J2,J3,J4,J5,J6]"""
+        """讀取當前關節角度 [J1,J2,J3,J4,J5,J6]"""
         return parse_pose(self.dashboard.GetAngle())
 
     def _wait_command(self, recv: str, timeout: float = 15.0) -> None:
         parsed = parse_numbers(recv)
         if parsed[0] != 0:
-            raise RuntimeError(f"运动指令失败: {recv}")
+            raise RuntimeError(f"運動指令失敗: {recv}")
         cmd_id = parsed[1]
         deadline = time.monotonic() + timeout
         while True:
@@ -164,16 +164,16 @@ class RobotSession(DobotDemo):
                 break
             if time.monotonic() > deadline:
                 raise RuntimeError(
-                    "机械臂运动执行超时，请检查：\n"
-                    "1. 机械臂是否已使能\n"
-                    "2. 机械臂是否处于急停状态\n"
-                    "3. 机械臂是否已断开连接"
+                    "機械臂運動執行超時，請檢查：\n"
+                    "1. 機械臂是否已使能\n"
+                    "2. 機械臂是否處於急停狀態\n"
+                    "3. 機械臂是否已斷開連接"
                 )
             sleep(0.1)
 
     def _run_move(self, move_fn, point: list[float], coordinate_mode: int = 0, v: int = 50) -> None:
         if len(point) != 6:
-            raise ValueError("位姿/关节必须为 6 个数")
+            raise ValueError("位姿/關節必須爲 6 個數")
         kwargs = {}
         if v > 0:
             kwargs["v"] = v
@@ -184,7 +184,7 @@ class RobotSession(DobotDemo):
         self._run_move(self.dashboard.MovJ, point, 0, v)
 
     def movj_joint(self, joint: list[float], v: int = 50) -> None:
-        """关节模式运动：joint=[J1,J2,J3,J4,J5,J6]"""
+        """關節模式運動：joint=[J1,J2,J3,J4,J5,J6]"""
         self._run_move(self.dashboard.MovJ, joint, 1, v)
 
     def movl(self, point: list[float], v: int = 50) -> None:
@@ -192,7 +192,7 @@ class RobotSession(DobotDemo):
 
     def arc(self, through_point: list[float], end_point: list[float], v: int = 50) -> None:
         if len(through_point) != 6 or len(end_point) != 6:
-            raise ValueError("圆弧中间点/目标点必须为 6 个数")
+            raise ValueError("圓弧中間點/目標點必須爲 6 個數")
         kwargs = {}
         if v > 0:
             kwargs["v"] = v
@@ -201,7 +201,7 @@ class RobotSession(DobotDemo):
 
     def circle(self, through_point: list[float], end_point: list[float], count: int = 1, v: int = 50) -> None:
         if len(through_point) != 6 or len(end_point) != 6:
-            raise ValueError("整圆中间点/结束点必须为 6 个数")
+            raise ValueError("整圓中間點/結束點必須爲 6 個數")
         kwargs = {}
         if v > 0:
             kwargs["v"] = v
@@ -209,7 +209,7 @@ class RobotSession(DobotDemo):
         self._wait_command(recv)
 
     def disconnect(self) -> None:
-        """关闭 TCP 连接，避免交互模式下端口被占用。"""
+        """關閉 TCP 連接，避免交互模式下端口被佔用。"""
         self._feed_running = False
         sleep(0.2)
 

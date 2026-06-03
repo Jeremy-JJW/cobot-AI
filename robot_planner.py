@@ -20,7 +20,7 @@ def _convert_legacy_step_plan(llm_plan: dict[str, Any], text: str) -> dict[str, 
     }
     skill = mapping.get(action)
     if not skill:
-        raise ValueError(f"大模型返回了未支持的动作: {action}")
+        raise ValueError(f"大模型返回了未支持的動作: {action}")
 
     params: dict[str, Any] = {}
     if skill == "move_relative_linear":
@@ -48,12 +48,24 @@ def _convert_legacy_step_plan(llm_plan: dict[str, Any], text: str) -> dict[str, 
 def _looks_complex_for_rule(text: str) -> bool:
     """Return True for instructions where rule parsing should not take shortcuts."""
     compact = re.sub(r"\s+", "", text)
-    sequence_markers = ("先", "再", "然后", "接着", "随后", "第一步", "第二步", "第三步", "，", ",", "；", ";")
+    sequence_markers = ("先", "再", "然後", "接着", "隨後", "第一步", "第二步", "第三步", "，", ",", "；", ";")
     has_sequence = any(marker in compact for marker in sequence_markers)
-    speed_mentions = len(re.findall(r"[\d.]+\s*(?:%|％)|慢点|慢一点|快速|快点|快一点|低速", text))
+    speed_mentions = len(re.findall(r"[\d.]+\s*(?:%|％)|慢點|慢一點|快速|快點|快一點|低速", text))
+
+    # 多点序列：涉及 2+ 個命名點的順序訪問 → 走 LLM 更精準
+    has_multi_point = False
+    if has_sequence:
+        points = re.findall(
+            r"(?:先|再|然後|接着|之後)?\s*(?:去|到|回|回到|移動(?:到)?)\s*([a-zA-Z0-9_]+)",
+            text,
+            re.I,
+        )
+        named = [p for p in points if re.search(r"[a-zA-Z]", p)]
+        has_multi_point = len(set(p.lower() for p in named)) >= 2
 
     return (
-        (has_sequence and len(compact) >= 20)
+        has_multi_point
+        or (has_sequence and len(compact) >= 20)
         or (has_sequence and speed_mentions >= 1)
         or speed_mentions >= 2
     )
@@ -86,7 +98,7 @@ def plan_from_text(text: str, use_llm: bool = False) -> dict[str, Any]:
 
     if not use_llm:
         raise ValueError(
-            "无法识别指令。请使用固定话术，见 使用说明.md；"
+            "無法識別指令。請使用固定話術，見 使用說明.md；"
             "或去掉 --no-llm 使用大模型兜底。"
         )
 

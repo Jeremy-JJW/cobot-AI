@@ -1,4 +1,4 @@
-"""将 Markdown 转为 PDF（汇报用）。用法: python scripts/md_to_pdf.py [输入.md] [输出.pdf]"""
+"""將 Markdown 轉爲 PDF（彙報用）。用法: python scripts/md_to_pdf.py [輸入.md] [輸出.pdf]"""
 from __future__ import annotations
 
 import argparse
@@ -71,7 +71,7 @@ def md_to_html(md_text: str, *, compact: bool = False) -> str:
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8"/>
-  <title>方案规划</title>
+  <title>方案規劃</title>
   <style>{css}</style>
 </head>
 <body>{body}</body>
@@ -97,9 +97,9 @@ def html_to_pdf(html: str, pdf_path: Path, *, compact: bool = False) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Markdown → PDF")
-    parser.add_argument("input", nargs="?", default=str(ROOT / "方案规划.md"))
+    parser.add_argument("input", nargs="?", default=str(ROOT / "方案規劃.md"))
     parser.add_argument("output", nargs="?", default=None)
-    parser.add_argument("--compact", action="store_true", help="紧凑排版，适合一页速查表")
+    parser.add_argument("--compact", action="store_true", help="緊湊排版，適合一頁速查表")
     args = parser.parse_args()
 
     md_path = Path(args.input).resolve()

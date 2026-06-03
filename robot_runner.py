@@ -32,9 +32,9 @@ def run_once(
     plan_path = save_plan(plan)
 
     if verbose:
-        print(f"\n用户: {text}")
-        print("计划:", json.dumps(plan, ensure_ascii=False, indent=2))
-        print(f"解析来源: {plan.get('source', 'unknown')}")
+        print(f"\n用戶: {text}")
+        print("計劃:", json.dumps(plan, ensure_ascii=False, indent=2))
+        print(f"解析來源: {plan.get('source', 'unknown')}")
         print(f"已保存: {plan_path}")
 
     if dry_run:
@@ -55,19 +55,19 @@ def run_once(
         session = RobotSession(robot_ip)
         created_session = True
         if verbose:
-            print(f"连接机械臂 {robot_ip} ...")
+            print(f"連接機械臂 {robot_ip} ...")
         session.connect()
 
     try:
         if plan["skill"] != "read_pose":
             session.enable()
             if verbose:
-                print("使能成功，开始执行" if first_connect else "开始执行")
+                print("使能成功，開始執行" if first_connect else "開始執行")
 
         validated = execute_skill(session, plan, dry_run=False)
         remember_plan(text, validated, source=plan.get("source", "unknown"))
         if verbose:
-            print("执行完成")
+            print("執行完成")
 
         if keep_alive:
             next_session = session

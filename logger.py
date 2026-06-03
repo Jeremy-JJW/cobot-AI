@@ -1,4 +1,4 @@
-"""操作日志与 Flask 请求日志。"""
+"""操作日誌與 Flask 請求日誌。"""
 import csv
 import logging
 import os
