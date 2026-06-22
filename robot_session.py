@@ -153,6 +153,34 @@ class RobotSession(DobotDemo):
         """讀取當前關節角度 [J1,J2,J3,J4,J5,J6]"""
         return parse_pose(self.dashboard.GetAngle())
 
+    @staticmethod
+    def _state_to_int(state) -> int:
+        """ON/開/1/True → 1，其餘 → 0"""
+        if isinstance(state, (int, float)) and not isinstance(state, bool):
+            return 1 if int(state) != 0 else 0
+        return 1 if str(state).strip().upper() in {"ON", "1", "TRUE", "開", "开", "高"} else 0
+
+    def read_di(self, index: int) -> int:
+        """讀取數字輸入 DI 狀態，返回 0/1。返回格式: ErrorID,{value},DI(index);"""
+        nums = parse_numbers(self.dashboard.DI(int(index)))
+        if nums[0] != 0:
+            raise RuntimeError(f"讀取 DI{index} 失敗: {nums}")
+        return nums[1] if len(nums) > 1 else 0
+
+    def set_do(self, index: int, state) -> None:
+        """立即設置數字輸出 DO（DOInstant，不入運動隊列）。"""
+        value = self._state_to_int(state)
+        nums = parse_numbers(self.dashboard.DOInstant(int(index), value))
+        if nums[0] != 0:
+            raise RuntimeError(f"設置 DO{index} 失敗: {nums}")
+
+    def get_do(self, index: int) -> int:
+        """讀取數字輸出 DO 狀態，返回 0/1。"""
+        nums = parse_numbers(self.dashboard.GetDO(int(index)))
+        if nums[0] != 0:
+            raise RuntimeError(f"讀取 DO{index} 失敗: {nums}")
+        return nums[1] if len(nums) > 1 else 0
+
     def _wait_command(self, recv: str, timeout: float = 15.0) -> None:
         parsed = parse_numbers(recv)
         if parsed[0] != 0:

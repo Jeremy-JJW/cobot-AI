@@ -1,18 +1,24 @@
 """Flask Web demo: natural language robot control UI."""
+import json
 import os
+import re
 import subprocess
 import sys
 import threading
 import time
+from pathlib import Path
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
 
 from executor import execute_skill
 from logger import log_operation, setup_flask_logger
+from lua_exporter import export_lua
+from program_runner import run_program
 from robot_planner import plan_from_text
 from robot_runner import execute_plan, save_plan
 from robot_session import RobotSession
+from script_parser import parse_instruction
 from semantic_cache import remember_plan
 from web_plan_format import (
     format_completion_message,
@@ -22,6 +28,9 @@ from web_plan_format import (
 )
 
 load_dotenv()
+
+PROGRAMS_DIR = Path(__file__).resolve().parent / "programs"
+_PROGRAM_NAME_RE = re.compile(r"^[\w\u4e00-\u9fff][\w\u4e00-\u9fff \-]{0,49}$")
 
 app = Flask(__name__)
 _robot_lock = threading.Lock()
@@ -286,6 +295,172 @@ def api_restart():
 
     threading.Thread(target=_do_restart, daemon=False).start()
     return jsonify({"ok": True, "message": "服務正在重啓，請稍候..."})
+
+
+# ── 脚本编程模式 ──
+
+def _ensure_session() -> RobotSession:
+    """返回已连接的 session，必要时自动连接。需在 _robot_lock 内调用。"""
+    session = _get_session()
+    if session is None or session.dashboard is None:
+        ip = os.environ.get("ROBOT_IP", "192.168.5.1")
+        session = RobotSession(ip)
+        session.connect()
+        _store_session(session)
+    return session
+
+
+def _validate_program_name(name: str) -> str:
+    name = (name or "").strip()
+    if not _PROGRAM_NAME_RE.match(name):
+        raise ValueError("程序名稱無效（僅支持中英文/數字/空格/短橫線，1～50 字）")
+    return name
+
+
+def _program_path(name: str) -> Path:
+    return PROGRAMS_DIR / f"{name}.json"
+
+
+@app.post("/api/script/plan")
+def api_script_plan():
+    data = request.get_json(silent=True) or {}
+    text = str(data.get("text", "")).strip()
+    if not text:
+        return jsonify({"ok": False, "error": "請輸入指令"}), 400
+    use_llm = not bool(data.get("no_llm"))
+    try:
+        instructions = parse_instruction(text, use_llm=use_llm)
+        return jsonify({"ok": True, "instructions": instructions})
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"ok": False, "error": f"解析失敗: {exc}"}), 500
+
+
+@app.post("/api/capture-pose")
+def api_capture_pose():
+    try:
+        with _robot_lock:
+            session = _ensure_session()
+            session.enable()
+            pose = session.get_pose()
+        return jsonify({"ok": True, "pose": [round(v, 3) for v in pose]})
+    except Exception as exc:
+        return jsonify({"ok": False, "error": f"讀取當前位置失敗: {exc}"}), 500
+
+
+@app.get("/api/programs")
+def api_list_programs():
+    PROGRAMS_DIR.mkdir(exist_ok=True)
+    names = sorted(p.stem for p in PROGRAMS_DIR.glob("*.json"))
+    return jsonify({"ok": True, "programs": names})
+
+
+@app.get("/api/programs/<name>")
+def api_get_program(name: str):
+    try:
+        name = _validate_program_name(name)
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    path = _program_path(name)
+    if not path.exists():
+        return jsonify({"ok": False, "error": "程序不存在"}), 404
+    return jsonify({"ok": True, "program": json.loads(path.read_text(encoding="utf-8"))})
+
+
+@app.post("/api/programs/<name>")
+def api_save_program(name: str):
+    data = request.get_json(silent=True) or {}
+    try:
+        name = _validate_program_name(name)
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+
+    overwrite = bool(data.get("overwrite"))
+    path = _program_path(name)
+    if path.exists() and not overwrite:
+        return jsonify({"ok": False, "error": "文件名已存在", "exists": True}), 409
+
+    program = {
+        "name": name,
+        "points": data.get("points", []),
+        "instructions": data.get("instructions", []),
+    }
+    PROGRAMS_DIR.mkdir(exist_ok=True)
+    path.write_text(json.dumps(program, ensure_ascii=False, indent=2), encoding="utf-8")
+    return jsonify({"ok": True, "message": "已保存", "name": name})
+
+
+@app.delete("/api/programs/<name>")
+def api_delete_program(name: str):
+    try:
+        name = _validate_program_name(name)
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    path = _program_path(name)
+    if path.exists():
+        path.unlink()
+    return jsonify({"ok": True, "message": "已刪除"})
+
+
+@app.post("/api/run-program")
+def api_run_program():
+    t0 = time.time()
+    data = request.get_json(silent=True) or {}
+    program = data.get("program")
+    if not isinstance(program, dict) or not program.get("instructions"):
+        return jsonify({"ok": False, "error": "程序為空，無法運行"}), 400
+
+    _set_status("執行中")
+    try:
+        with _robot_lock:
+            session = _ensure_session()
+            session.enable()
+            stats = run_program(program, session)
+        _set_status("已就緒")
+        log_operation(
+            user_text=f"運行程序 {program.get('name', '')}",
+            source="script",
+            skill="run_program",
+            params=stats,
+            result="success",
+            duration_ms=int((time.time() - t0) * 1000),
+        )
+        return jsonify({
+            "ok": True,
+            "message": f"程序執行完成：共 {stats['total']} 行，執行 {stats['executed']} 行，跳過 {stats['skipped']} 行",
+            "stats": stats,
+        })
+    except ValueError as exc:
+        _set_status("錯誤")
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    except Exception as exc:
+        _set_status("錯誤")
+        with _robot_lock:
+            _store_session(None)
+        log_operation(
+            user_text=f"運行程序 {program.get('name', '')}",
+            source="script",
+            skill="run_program",
+            params=None,
+            result="error",
+            error_message=str(exc),
+            duration_ms=int((time.time() - t0) * 1000),
+        )
+        return jsonify({"ok": False, "error": f"執行失敗: {exc}"}), 500
+
+
+@app.post("/api/export-lua")
+def api_export_lua():
+    data = request.get_json(silent=True) or {}
+    program = data.get("program")
+    if not isinstance(program, dict):
+        return jsonify({"ok": False, "error": "缺少程序內容"}), 400
+    try:
+        lua_text = export_lua(program)
+        return jsonify({"ok": True, "lua": lua_text, "name": program.get("name", "program")})
+    except Exception as exc:
+        return jsonify({"ok": False, "error": f"導出失敗: {exc}"}), 500
 
 
 def main() -> None:

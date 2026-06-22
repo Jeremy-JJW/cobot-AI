@@ -27,12 +27,321 @@ body {
   background: var(--bg);
 }
 
+.app-layout {
+  height: 100vh;
+  display: flex;
+  overflow: hidden;
+}
+
 .app-shell {
+  flex: 1;
+  min-width: 0;
   height: 100vh;
   max-height: 100vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+/* ── Sidebar ── */
+.sidebar {
+  flex-shrink: 0;
+  width: 180px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 16px 12px;
+  gap: 18px;
+}
+
+.sidebar-brand {
+  font-weight: 700;
+  color: var(--accent);
+  font-size: 1.05rem;
+  padding: 4px 8px;
+}
+
+.side-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.side-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.92rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.side-item:hover {
+  background: #f3f3f3;
+}
+
+.side-item.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.side-icon {
+  font-size: 1.05rem;
+}
+
+/* ── View switching ── */
+.view {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Script editor ── */
+.script-toolbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 12px 24px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.prog-select,
+.prog-name {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.88rem;
+}
+
+.prog-name {
+  flex: 1;
+  min-width: 120px;
+  max-width: 220px;
+}
+
+.tool-btn {
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.86rem;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.tool-btn:hover:not(:disabled) {
+  background: #f3f3f3;
+}
+
+.tool-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.tool-btn.small {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 0.8rem;
+}
+
+.tool-btn.run-btn {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+  font-weight: 600;
+}
+
+.tool-btn.run-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.script-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  gap: 0;
+  overflow: hidden;
+}
+
+.instructions-panel {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+
+.points-panel {
+  flex-shrink: 0;
+  width: 260px;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 16px 16px;
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 12px;
+  font-size: 0.95rem;
+}
+
+.instruction-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  counter-reset: instr;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.instruction-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.instruction-item.has-condition {
+  border-left: 3px solid var(--accent);
+}
+
+.instr-index {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.instr-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.instr-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.icon-btn {
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.9rem;
+  display: grid;
+  place-items: center;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.icon-btn:hover {
+  background: #f0f0f0;
+  color: var(--text);
+}
+
+.icon-btn.danger:hover {
+  background: #fde8e8;
+  color: var(--error);
+}
+
+.point-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.point-item {
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.point-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.point-id {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.point-coords {
+  margin-top: 6px;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+  word-break: break-all;
+}
+
+.point-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.empty-hint {
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  line-height: 1.6;
+  margin: 12px 4px;
+}
+
+.empty-hint.hidden {
+  display: none;
+}
+
+.script-composer {
+  border-top: 1px solid var(--border);
 }
 
 .app-header {

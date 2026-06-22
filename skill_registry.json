@@ -145,6 +145,32 @@
         "J2 負方向轉 90 度",
         "J3 正轉 45 度"
       ]
+    },
+    "move_to_program_point": {
+      "description": "運動到程序內存點 Pn（笛卡爾）",
+      "params": {
+        "point": { "type": "string", "required": true },
+        "move_type": { "type": "string", "enum": ["movj", "movl"], "default": "movj" },
+        "speed_percent": { "type": "number", "min": 1, "max": 50, "default": 30 }
+      },
+      "examples": ["運動到 P1", "直線運動到 P2", "去 P3"]
+    },
+    "set_do": {
+      "description": "設置數字輸出 DO 端口狀態",
+      "params": {
+        "index": { "type": "number", "min": 1, "max": 16, "required": true },
+        "state": { "type": "string", "enum": ["ON", "OFF"], "required": true }
+      },
+      "examples": ["置 DO1 為 ON", "DO2 關閉"]
+    },
+    "wait_di": {
+      "description": "等待數字輸入 DI 達到指定狀態",
+      "params": {
+        "index": { "type": "number", "min": 1, "max": 16, "required": true },
+        "state": { "type": "string", "enum": ["ON", "OFF"], "required": true },
+        "timeout_seconds": { "type": "number", "min": 0.1, "max": 60, "default": 10 }
+      },
+      "examples": ["等待 DI1 為 ON", "等到 DI3 為 OFF"]
     }
   }
 }
