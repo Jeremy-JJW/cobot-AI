@@ -236,6 +236,19 @@ class RobotSession(DobotDemo):
         recv = self.dashboard.Circle(*through_point, *end_point, 0, int(count), **kwargs)
         self._wait_command(recv)
 
+    def jog_start(self, axis_id: str) -> None:
+        """開始点動：axis_id = X+/X-/Y+/Y-/Z+/Z-/Rx+/Rx-/Ry+/Ry-/Rz+/Rz-/J1+/J1-...J6+/J6-"""
+        axis_letter = axis_id.rstrip("+-")
+        if axis_letter in ("X", "Y", "Z", "Rx", "Ry", "Rz"):
+            self.dashboard.SpeedFactor(30)
+            self.dashboard.MoveJog(axis_id, coordtype=1, user=0, tool=0)
+        else:
+            self.dashboard.MoveJog(axis_id)
+
+    def jog_stop(self) -> None:
+        """停止点動"""
+        self.dashboard.MoveJog()
+
     def disconnect(self) -> None:
         """關閉 TCP 連接，避免交互模式下端口被佔用。"""
         self._feed_running = False

@@ -69,6 +69,14 @@ motion_pattern — 預置複合運動路線（圓/弧/方/螺旋等，執行完�
     spiral_z    — 走三維螺旋、空間螺旋、螺旋
   尺寸規則：畫圓/圓弧/螺旋優先填 radius_mm；方形/矩形/三角等填 size_mm
 
+【方向映射】（重要：用戶說向左/向右/向前/向後時必須按以下映射）
+- 向左 → axis: x, direction: -（X 負方向）
+- 向右 → axis: x, direction: +（X 正方向）
+- 向前 → axis: y, direction: -（Y 負方向）
+- 向後 → axis: y, direction: +（Y 正方向）
+- 向上/抬高/上升 → axis: z, direction: +（Z 正方向）
+- 向下/下降/降低 → axis: z, direction: -（Z 負方向）
+
 set_speed — 設置全局速度
   params: speed_percent(1～50)
   適用：速度設置爲 30%、調慢一點(→20)、快一點(→40)

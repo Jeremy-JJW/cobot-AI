@@ -93,20 +93,29 @@ def api_status():
     connected = session is not None and session.dashboard is not None
     alarm = False
     robot_mode = -1
-    # 執行中時跳過 get_robot_mode，避免因 TCP 忙導致請求卡住
     if connected and _robot_status != "執行中":
         try:
-            robot_mode = session.get_robot_mode()
-            alarm = robot_mode == 9
+            mode_raw = session.get_robot_mode()
+            robot_mode = int(mode_raw) if mode_raw is not None else -1
+            alarm = bool(robot_mode == 9)
         except Exception:
             pass
-    return jsonify({
-        "ok": True,
-        "status": _robot_status,
-        "connected": connected,
-        "alarm": alarm,
-        "robot_mode": robot_mode,
-    })
+    try:
+        return jsonify({
+            "ok": True,
+            "status": str(_robot_status) if _robot_status else "未知",
+            "connected": connected,
+            "alarm": alarm,
+            "robot_mode": robot_mode,
+        })
+    except Exception:
+        return jsonify({
+            "ok": True,
+            "status": "状态获取异常",
+            "connected": connected,
+            "alarm": False,
+            "robot_mode": -1,
+        })
 
 
 @app.post("/api/plan")
@@ -249,6 +258,38 @@ def api_run_once():
             duration_ms=int((time.time() - t0) * 1000),
         )
         return jsonify({"ok": False, "error": f"執行失敗: {exc}"}), 500
+
+
+@app.post("/api/jog/start")
+def api_jog_start():
+    data = request.get_json(silent=True) or {}
+    axis_id = str(data.get("axis_id", "")).strip()
+    if not axis_id:
+        return jsonify({"ok": False, "error": "缺少 axis_id"}), 400
+    ip = data.get("ip") or os.environ.get("ROBOT_IP", "192.168.5.1")
+    session = _get_session()
+    if session is None:
+        session = RobotSession(ip=ip)
+        _store_session(session)
+    try:
+        # 确保已连接
+        if session.dashboard is None:
+            session.connect()
+        session.jog_start(axis_id)
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"点动失败: {e}"}), 400
+
+
+@app.post("/api/jog/stop")
+def api_jog_stop():
+    session = _get_session()
+    if session and session.dashboard:
+        try:
+            session.jog_stop()
+        except Exception:
+            pass
+    return jsonify({"ok": True})
 
 
 @app.post("/api/clear-alarm")

@@ -6,14 +6,16 @@ const statusText = document.getElementById("statusText");
 const alarmBanner = document.getElementById("alarmBanner");
 
 let busy = false;
+let _consecutiveFailures = 0;
+let _lastKnownBackendOk = true;
 
 const STATUS_CLASS = {
-  "未連接": "idle",
-  "已就緒": "ready",
+  "未连接": "idle",
+  "已就绪": "ready",
   "分析中": "planning",
-  "執行中": "executing",
-  "錯誤": "error",
-  "報警": "error",
+  "执行中": "executing",
+  "错误": "error",
+  "报警": "error",
 };
 
 function setStatus(status) {
@@ -25,6 +27,18 @@ function setBusy(nextBusy) {
   busy = nextBusy;
   executeBtn.disabled = nextBusy;
   commandInput.disabled = nextBusy;
+  /* 脚本模式控件也受 busy 保护 */
+  document.getElementById("scriptAddBtn").disabled = nextBusy;
+  document.getElementById("scriptInput").disabled = nextBusy;
+  document.getElementById("scriptMicBtn").disabled = nextBusy;
+  document.getElementById("addPointBtn").disabled = nextBusy;
+  document.getElementById("saveProgramBtn").disabled = nextBusy;
+  document.getElementById("exportLuaBtn").disabled = nextBusy;
+  document.getElementById("runProgramBtn").disabled = nextBusy;
+  document.getElementById("newProgramBtn").disabled = nextBusy;
+  document.getElementById("importProgramBtn").disabled = nextBusy;
+  document.getElementById("programSelect").disabled = nextBusy;
+  document.getElementById("programName").disabled = nextBusy;
 }
 
 function scrollToBottom() {
@@ -73,7 +87,7 @@ function appendBot(content, { isError = false, isSuccess = false, thinking = fal
 
   let html;
   if (isSuccess) {
-    html = `<p><span class="success-prefix">✓ 執行成功！</span> ${escapeHtml(content)}</p>`;
+    html = `<p><span class="success-prefix">✓ 执行成功！</span> ${escapeHtml(content)}</p>`;
   } else {
     html = botParagraphHtml(content, isError ? "error-text" : "");
   }
@@ -111,13 +125,13 @@ async function refreshStatus() {
     clearTimeout(timer);
     const data = await response.json();
     _consecutiveFailures = 0;
-    window._lastKnownBackendOk = true;
+    _lastKnownBackendOk = true;
     if (data.ok && !busy) {
       if (data.alarm) {
-        setStatus("報警");
+        setStatus("报警");
         alarmBanner.style.display = "flex";
       } else {
-        setStatus(data.connected ? "已就緒" : "未連接");
+        setStatus(data.connected ? "已就绪" : "未连接");
         alarmBanner.style.display = "none";
       }
     }
@@ -184,7 +198,7 @@ refreshStatus();
 setInterval(refreshStatus, 5000);
 
 /* ── Clear Alarm ── */
-document.getElementById("clearAlarmBtn").addEventListener("click", async () => {
+const _clearAlarmHandler = async () => {
   if (busy) return;
   setBusy(true);
   try {
@@ -202,7 +216,10 @@ document.getElementById("clearAlarmBtn").addEventListener("click", async () => {
   } finally {
     setBusy(false);
   }
-});
+};
+document.getElementById("clearAlarmBtn").addEventListener("click", _clearAlarmHandler);
+const bannerBtn = document.getElementById("clearAlarmBannerBtn");
+if (bannerBtn) bannerBtn.addEventListener("click", _clearAlarmHandler);
 
 /* ── Speech Recognition ── */
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -226,7 +243,7 @@ function toggleSpeech() {
 function startListening() {
   if (busy) return;
   const recognition = new SpeechRecognition();
-  recognition.lang = "zh-TW";
+  recognition.lang = "zh-CN";
   recognition.continuous = false;
   recognition.interimResults = false;
   recognition.maxAlternatives = 1;
@@ -288,27 +305,57 @@ setBusy = function (nextBusy) {
   micBtn.disabled = nextBusy;
 };
 
-/* ══════════════ 腳本編程模式 ══════════════ */
+/* ══════════════ 页面导航（主页 / 子页面） ══════════════ */
 
-/* ── 視圖切換 ── */
-const pageName = document.getElementById("pageName");
+const homeViewEl = document.getElementById("homeView");
+const appShellEl = document.getElementById("appShell");
+const pageNameEl = document.getElementById("pageName");
 const views = {
   chat: document.getElementById("chatView"),
   script: document.getElementById("scriptView"),
 };
-const VIEW_TITLES = { chat: "對話控制", script: "腳本編程" };
+const VIEW_TITLES = { chat: "对话控制", script: "脚本编程" };
 
-document.querySelectorAll(".side-item").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    const view = btn.dataset.view;
-    document.querySelectorAll(".side-item").forEach((b) => b.classList.toggle("active", b === btn));
-    Object.entries(views).forEach(([key, el]) => {
-      el.style.display = key === view ? "flex" : "none";
-    });
-    pageName.textContent = VIEW_TITLES[view] || "";
-    if (view === "script") loadProgramList();
+function switchToView(view) {
+  if (!view || !views[view]) return;
+  homeViewEl.classList.add("fade-out");
+  appShellEl.style.display = "flex";
+  appShellEl.classList.add("fade-in");
+
+  setTimeout(() => {
+    homeViewEl.style.display = "none";
+    homeViewEl.classList.remove("fade-out");
+  }, 350);
+
+  Object.entries(views).forEach(([key, el]) => {
+    el.style.display = key === view ? "flex" : "none";
+  });
+  pageNameEl.textContent = VIEW_TITLES[view] || "";
+  if (view === "script") loadProgramList();
+}
+
+function goHome() {
+  appShellEl.classList.add("fade-out");
+  homeViewEl.style.display = "flex";
+  homeViewEl.classList.add("fade-in");
+
+  setTimeout(() => {
+    appShellEl.style.display = "none";
+    appShellEl.classList.remove("fade-out");
+    homeViewEl.classList.remove("fade-in");
+  }, 300);
+}
+
+/* Card click handlers */
+document.querySelectorAll(".home-card").forEach((card) => {
+  card.addEventListener("click", () => {
+    const view = card.dataset.view;
+    if (view) switchToView(view);
   });
 });
+
+/* Home button (logo) click */
+document.getElementById("homeBtn").addEventListener("click", goHome);
 
 /* ── 簡易提示 toast ── */
 function toast(message, type = "info") {
@@ -654,7 +701,7 @@ if (!SpeechRecognition) {
       return;
     }
     const recognition = new SpeechRecognition();
-    recognition.lang = "zh-TW";
+    recognition.lang = "zh-CN";
     recognition.continuous = false;
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
@@ -696,3 +743,254 @@ document.getElementById("restartBtn").addEventListener("click", async () => {
     setTimeout(() => window.location.reload(), 1500);
   }
 });
+
+/* ═══════════════════════════════════════════════
+   粒子系统（Canvas）
+   ═══════════════════════════════════════════════ */
+
+(function initParticles() {
+  const canvas = document.getElementById("particleCanvas");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  let w, h;
+  const particles = [];
+  const COUNT = 160;
+  const CONNECT_DIST = 200;
+  let mouseX = -9999, mouseY = -9999;
+
+  function resize() {
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  for (let i = 0; i < COUNT; i++) {
+    particles.push({
+      x: Math.random() * w,
+      y: Math.random() * h,
+      vx: (Math.random() - 0.5) * 0.4,
+      vy: (Math.random() - 0.5) * 0.4,
+      r: Math.random() * 7 + 3,
+      alpha: Math.random() * 0.4 + 0.4,
+    });
+  }
+
+  function animate() {
+    ctx.clearRect(0, 0, w, h);
+
+    for (const p of particles) {
+      p.x += p.vx;
+      p.y += p.vy;
+      if (p.x < 0) p.x = w;
+      if (p.x > w) p.x = 0;
+      if (p.y < 0) p.y = h;
+      if (p.y > h) p.y = 0;
+
+      // 鼠标排斥效果
+      const dx = p.x - mouseX;
+      const dy = p.y - mouseY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 100) {
+        p.x += dx * 0.02;
+        p.y += dy * 0.02;
+      }
+
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(0, 180, 216, ${p.alpha})`;
+      ctx.fill();
+    }
+
+    // 粒子连线
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x;
+        const dy = particles[i].y - particles[j].y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < CONNECT_DIST) {
+          ctx.beginPath();
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.strokeStyle = `rgba(0, 180, 216, ${0.12 * (1 - dist / CONNECT_DIST)})`;
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+      }
+    }
+
+    requestAnimationFrame(animate);
+  }
+
+  canvas.addEventListener("mousemove", (e) => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+  });
+  canvas.addEventListener("mouseleave", () => {
+    mouseX = -9999;
+    mouseY = -9999;
+  });
+
+  animate();
+})();
+
+/* ═══════════════════════════════════════════════
+   标题打字机效果
+   ═══════════════════════════════════════════════ */
+
+(function typewriter() {
+  const titleEl = document.getElementById("mainTitle");
+  const subtitleEl = document.getElementById("subtitle");
+  if (!titleEl || !subtitleEl) return;
+
+  const titleText = "COBOT AI 智能协作系统";
+  const subtitleText = "领志科技 · 智造未来";
+  let charIndex = 0;
+
+  titleEl.textContent = "";
+  subtitleEl.textContent = "";
+  subtitleEl.style.visibility = "hidden";
+
+  function typeTitle() {
+    if (charIndex < titleText.length) {
+      titleEl.textContent += titleText[charIndex];
+      charIndex++;
+      setTimeout(typeTitle, 60 + Math.random() * 40);
+    } else {
+      subtitleEl.style.visibility = "visible";
+      charIndex = 0;
+      typeSubtitle();
+    }
+  }
+
+  function typeSubtitle() {
+    if (charIndex < subtitleText.length) {
+      subtitleEl.textContent += subtitleText[charIndex];
+      charIndex++;
+      setTimeout(typeSubtitle, 80 + Math.random() * 30);
+    }
+  }
+
+  setTimeout(typeTitle, 400);
+})();
+
+/* ═══════════════════════════════════════════════
+   点动控制（Jog）
+   ═══════════════════════════════════════════════ */
+(function initJog() {
+  const jogToggleBtn = document.getElementById("jogToggleBtn");
+  const jogOverlay = document.getElementById("jogOverlay");
+  const jogCloseBtn = document.getElementById("jogCloseBtn");
+  const jogStopAllBtn = document.getElementById("jogStopAllBtn");
+  const jogSpeed = document.getElementById("jogSpeed");
+  const jogSpeedVal = document.getElementById("jogSpeedVal");
+  const modeTabs = document.querySelectorAll(".jog-mode-tab");
+  const jogCartesian = document.getElementById("jogCartesian");
+  const jogJoint = document.getElementById("jogJoint");
+  const jogBtns = document.querySelectorAll(".jog-btn[data-axis]");
+  let _jogActive = false;
+
+  if (!jogToggleBtn || !jogOverlay) return;
+
+  // 打开/关闭面板
+  jogToggleBtn.addEventListener("click", () => {
+    jogOverlay.style.display = "block";
+  });
+
+  jogCloseBtn.addEventListener("click", closeJog);
+  jogOverlay.addEventListener("click", (e) => {
+    if (e.target === jogOverlay) closeJog();
+  });
+
+  function closeJog() {
+    jogOverlay.style.display = "none";
+    stopAllJog();
+  }
+
+  // 模式切换
+  modeTabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      modeTabs.forEach((t) => t.classList.remove("active"));
+      tab.classList.add("active");
+      const mode = tab.dataset.mode;
+      jogCartesian.style.display = mode === "cartesian" ? "" : "none";
+      jogJoint.style.display = mode === "joint" ? "" : "none";
+      // 切换模式时停止当前点动
+      stopAllJog();
+    });
+  });
+
+  // 速度滑块
+  jogSpeed.addEventListener("input", () => {
+    jogSpeedVal.textContent = jogSpeed.value;
+  });
+
+  // 点动按钮事件
+  jogBtns.forEach((btn) => {
+    const axisId = btn.dataset.axis;
+
+    const startJog = async () => {
+      if (_jogActive) return;
+      _jogActive = true;
+      btn.classList.add("active");
+      try {
+        await fetch("/api/jog/start", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ axis_id: axisId }),
+        });
+      } catch (_) {
+        _jogActive = false;
+        btn.classList.remove("active");
+      }
+    };
+
+    const stopJog = async () => {
+      if (!_jogActive) return;
+      _jogActive = false;
+      btn.classList.remove("active");
+      try {
+        await fetch("/api/jog/stop", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: "{}",
+        });
+      } catch (_) {}
+    };
+
+    btn.addEventListener("mousedown", startJog);
+    btn.addEventListener("mouseup", stopJog);
+    btn.addEventListener("mouseleave", stopJog);
+    btn.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      startJog();
+    });
+    btn.addEventListener("touchend", (e) => {
+      e.preventDefault();
+      stopJog();
+    });
+    btn.addEventListener("touchcancel", (e) => {
+      e.preventDefault();
+      stopJog();
+    });
+  });
+
+  // 紧急停止
+  jogStopAllBtn.addEventListener("click", stopAllJog);
+
+  function stopAllJog() {
+    if (!_jogActive) return;
+    _jogActive = false;
+    document.querySelectorAll(".jog-btn.active").forEach((b) => b.classList.remove("active"));
+    fetch("/api/jog/stop", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    }).catch(() => {});
+  }
+
+  // 页面关闭/离开时自动停止
+  window.addEventListener("beforeunload", () => {
+    navigator.sendBeacon("/api/jog/stop", "{}");
+  });
+})();

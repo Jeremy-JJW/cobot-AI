@@ -1,149 +1,262 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>COBOT AI</title>
-  <link rel="stylesheet" href="/static/css/app.css?v=19">
+  <title>领志 COBOT AI · 智能协作系统</title>
+  <link rel="stylesheet" href="/static/css/app.css?v=32">
 </head>
 <body>
-  <div class="app-layout">
-    <aside class="sidebar">
-      <div class="sidebar-brand">COBOT AI</div>
-      <nav class="side-nav">
-        <button class="side-item active" data-view="chat" type="button">
-          <span class="side-icon">💬</span>
-          <span>對話控制</span>
-        </button>
-        <button class="side-item" data-view="script" type="button">
-          <span class="side-icon">📝</span>
-          <span>腳本編程</span>
-        </button>
-      </nav>
-    </aside>
 
-    <div class="app-shell">
-      <header class="app-header">
-        <div class="breadcrumb">
-          <span class="brand-name">COBOT AI</span>
-          <span class="sep">&gt;</span>
-          <span class="page-name" id="pageName">對話控制</span>
-        </div>
-        <div class="header-right">
-          <button class="restart-btn" id="clearAlarmBtn" type="button" title="清除報警" aria-label="清除報警">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-            </svg>
-          </button>
-          <button class="restart-btn" id="restartBtn" type="button" title="重啓服務" aria-label="重啓服務">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
-              <path d="M17.65 6.35A7.96 7.96 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
-            </svg>
-          </button>
-          <div class="status-pill idle" id="statusPill">
-            <span class="status-dot"></span>
-            <span id="statusText">未連接</span>
-          </div>
-        </div>
-      </header>
+<div class="app-layout">
 
-      <div class="alarm-banner" id="alarmBanner" style="display:none">
-        <span class="alarm-icon">⚠️</span>
-        <span class="alarm-text">機械臂報警中</span>
-        <button class="clear-alarm-btn" id="clearAlarmBtn">清除報警</button>
+  <!-- ═══════ 主页面 ═══════ -->
+  <div id="homeView" class="home-view">
+    <canvas id="particleCanvas"></canvas>
+    <div class="home-bg"></div>
+    <div class="home-overlay"></div>
+
+    <div class="home-content">
+      <div class="home-logo">
+        <img src="/static/images/logo_transparent.png" alt="领志科技" class="home-logo-img">
       </div>
 
-      <!-- 對話控制視圖 -->
-      <div class="view" id="chatView">
-        <main class="chat-main">
-          <div class="chat-log" id="chatLog">
-            <div class="msg-row msg-bot">
-              <div class="avatar avatar-bot" aria-hidden="true">AI</div>
-              <div class="bubble">
-                <p>你好，請輸入機械臂動作指令，發送後將自動分析並控制機械臂。<br><span class="hint">示例：抬高 20 毫米 / 去 A 點 / 在桌面上畫一個小圓</span></p>
-              </div>
-            </div>
-          </div>
-        </main>
-
-        <footer class="composer">
-          <div class="input-box">
-            <textarea
-              id="commandInput"
-              rows="1"
-              placeholder="輸入機械臂動作指令（Enter 發送）"
-            ></textarea>
-            <button class="mic-btn" id="micBtn" type="button" aria-label="語音輸入" title="語音輸入">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
-                <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
-                <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-              </svg>
-            </button>
-            <button class="send-btn" id="executeBtn" type="button" aria-label="發送">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
-                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-              </svg>
-            </button>
-          </div>
-        </footer>
+      <div class="home-title-box">
+        <h1 id="mainTitle"></h1>
+        <p class="home-subtitle" id="subtitle"></p>
       </div>
 
-      <!-- 腳本編程視圖 -->
-      <div class="view script-view" id="scriptView" style="display:none">
-        <div class="script-toolbar">
-          <select id="programSelect" class="prog-select" title="選擇程序">
-            <option value="">— 選擇程序 —</option>
-          </select>
-          <input id="programName" class="prog-name" type="text" placeholder="程序名稱" maxlength="50">
-          <button class="tool-btn" id="newProgramBtn" type="button">新建</button>
-          <button class="tool-btn" id="saveProgramBtn" type="button">保存</button>
-          <button class="tool-btn" id="importProgramBtn" type="button">導入</button>
-          <button class="tool-btn" id="exportLuaBtn" type="button">導出 Lua</button>
-          <button class="tool-btn run-btn" id="runProgramBtn" type="button">▶ 運行</button>
-          <input id="importFile" type="file" accept=".json" hidden>
-        </div>
-
-        <div class="script-body">
-          <section class="instructions-panel">
-            <div class="panel-head">程序指令</div>
-            <ol class="instruction-list" id="instructionList"></ol>
-            <p class="empty-hint" id="instrEmptyHint">尚無指令。請在下方輸入或語音添加，例如「運動到 P1」「當 DI2 為 ON 時運動到 P1」「置 DO1 為 ON」。</p>
-          </section>
-
-          <aside class="points-panel">
-            <div class="panel-head">
-              存點列表
-              <button class="tool-btn small" id="addPointBtn" type="button">添加當前點</button>
-            </div>
-            <ul class="point-list" id="pointList"></ul>
-            <p class="empty-hint" id="pointEmptyHint">尚無存點。將機械臂移到目標位置後，點「添加當前點」記錄為 P1、P2…</p>
-          </aside>
-        </div>
-
-        <footer class="composer script-composer">
-          <div class="input-box">
-            <textarea
-              id="scriptInput"
-              rows="1"
-              placeholder="輸入一條指令並插入（Enter 插入），如：運動到 P1 / 當 DI2 為 ON 時運動到 P2 / 置 DO1 為 ON"
-            ></textarea>
-            <button class="mic-btn" id="scriptMicBtn" type="button" aria-label="語音輸入" title="語音輸入">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
-                <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
-                <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-              </svg>
-            </button>
-            <button class="send-btn" id="scriptAddBtn" type="button" aria-label="插入指令" title="插入指令">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
-                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-              </svg>
-            </button>
+      <div class="home-cards">
+        <div class="home-card" data-view="chat" tabindex="0" role="button">
+          <div class="card-icon card-icon-chat">
+            <svg viewBox="0 0 64 64" width="52" height="52" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M48 12H16a8 8 0 0 0-8 8v16a8 8 0 0 0 8 8h4v8l12-8h16a8 8 0 0 0 8-8V20a8 8 0 0 0-8-8z"/>
+              <circle cx="24" cy="28" r="3" fill="currentColor" stroke="none"/>
+              <circle cx="32" cy="28" r="3" fill="currentColor" stroke="none"/>
+              <circle cx="40" cy="28" r="3" fill="currentColor" stroke="none"/>
+            </svg>
           </div>
-        </footer>
+          <div class="card-info">
+            <h2>对话控制</h2>
+            <p>语音指令 · 实时执行</p>
+          </div>
+        </div>
+
+        <div class="home-card" data-view="script" tabindex="0" role="button">
+          <div class="card-icon card-icon-script">
+            <svg viewBox="0 0 64 64" width="52" height="52" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="12" y="8" width="40" height="48" rx="4"/>
+              <path d="M24 28l-6 6 6 6" stroke-width="2"/>
+              <path d="M40 28l6 6-6 6" stroke-width="2"/>
+              <line x1="34" y1="22" x2="30" y2="42" stroke-width="2"/>
+            </svg>
+          </div>
+          <div class="card-info">
+            <h2>脚本编程</h2>
+            <p>程序编辑 · 定点存导</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="home-footer">
+        <span class="footer-dot"></span>
+        <span>系统就绪</span>
       </div>
     </div>
   </div>
 
-  <script src="/static/js/app.js?v=19"></script>
+  <!-- ═══════ 应用子页面（对话控制 + 脚本编程） ═══════ -->
+  <div class="app-shell" id="appShell" style="display:none">
+    <header class="app-header">
+      <div class="header-left">
+        <button class="header-logo-btn" id="homeBtn" type="button" title="返回主页" aria-label="返回主页">
+          <img src="/static/images/123.png" class="header-logo" alt="领志科技">
+        </button>
+        <span class="header-title-sep">/</span>
+        <span class="page-name" id="pageName">对话控制</span>
+      </div>
+      <div class="header-right">
+        <button class="restart-btn" id="clearAlarmBtn" type="button" title="清除报警" aria-label="清除报警">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+          </svg>
+        </button>
+        <button class="restart-btn" id="restartBtn" type="button" title="重启服务" aria-label="重启服务">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+            <path d="M17.65 6.35A7.96 7.96 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+          </svg>
+        </button>
+        <div class="status-pill idle" id="statusPill">
+          <span class="status-dot"></span>
+          <span id="statusText">未连接</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="alarm-banner" id="alarmBanner" style="display:none">
+      <span class="alarm-icon">⚠️</span>
+      <span class="alarm-text">机械臂报警中</span>
+      <button class="clear-alarm-btn" id="clearAlarmBannerBtn">清除报警</button>
+    </div>
+
+    <!-- 对话控制视图 -->
+    <div class="view" id="chatView">
+      <main class="chat-main">
+        <div class="chat-log" id="chatLog">
+          <div class="msg-row msg-bot">
+            <div class="avatar avatar-bot" aria-hidden="true">AI</div>
+            <div class="bubble">
+              <p>你好，请输入机械臂动作指令，发送后将自动分析并控制机械臂。<br><span class="hint">示例：抬高 20 毫米 / 去 A 点 / 在桌面上画一个小圆</span></p>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <footer class="composer">
+        <div class="input-box">
+          <textarea
+            id="commandInput"
+            rows="1"
+            placeholder="输入机械臂动作指令（Enter 发送）"
+          ></textarea>
+          <button class="mic-btn" id="micBtn" type="button" aria-label="语音输入" title="语音输入">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+              <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+              <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+            </svg>
+          </button>
+          <button class="send-btn" id="executeBtn" type="button" aria-label="发送">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+            </svg>
+          </button>
+        </div>
+      </footer>
+    </div>
+
+    <!-- 脚本编程视图 -->
+    <div class="view script-view" id="scriptView" style="display:none">
+      <div class="script-toolbar">
+        <select id="programSelect" class="prog-select" title="选择程序">
+          <option value="">— 选择程序 —</option>
+        </select>
+        <input id="programName" class="prog-name" type="text" placeholder="程序名称" maxlength="50">
+        <button class="tool-btn" id="newProgramBtn" type="button">新建</button>
+        <button class="tool-btn" id="saveProgramBtn" type="button">保存</button>
+        <button class="tool-btn" id="importProgramBtn" type="button">导入</button>
+        <button class="tool-btn" id="exportLuaBtn" type="button">导出 Lua</button>
+        <button class="tool-btn run-btn" id="runProgramBtn" type="button">▶ 运行</button>
+        <button class="tool-btn" id="jogToggleBtn" type="button">点动</button>
+        <input id="importFile" type="file" accept=".json" hidden>
+      </div>
+
+      <div class="script-body">
+        <section class="instructions-panel">
+          <div class="panel-head">程序指令</div>
+          <ol class="instruction-list" id="instructionList"></ol>
+          <p class="empty-hint" id="instrEmptyHint">尚无指令。请在下方输入或语音添加，例如「运动到 P1」「当 DI2 为 ON 时运动到 P1」「置 DO1 为 ON」。</p>
+        </section>
+
+        <aside class="points-panel">
+          <div class="panel-head">
+            存点列表
+            <button class="tool-btn small" id="addPointBtn" type="button">添加当前点</button>
+          </div>
+          <ul class="point-list" id="pointList"></ul>
+          <p class="empty-hint" id="pointEmptyHint">尚无存点。将机械臂移到目标位置后，点「添加当前点」记录为 P1、P2…</p>
+        </aside>
+      </div>
+
+      <footer class="composer script-composer">
+        <div class="input-box">
+          <textarea
+            id="scriptInput"
+            rows="1"
+            placeholder="输入一条指令并插入（Enter 插入），如：运动到 P1 / 当 DI2 为 ON 时运动到 P2 / 置 DO1 为 ON"
+          ></textarea>
+          <button class="mic-btn" id="scriptMicBtn" type="button" aria-label="语音输入" title="语音输入">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+              <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+              <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+            </svg>
+          </button>
+          <button class="send-btn" id="scriptAddBtn" type="button" aria-label="插入指令" title="插入指令">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+              <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+            </svg>
+          </button>
+        </div>
+      </footer>
+    </div>
+
+    <!-- 点动控制弹出面板 -->
+    <div class="jog-overlay" id="jogOverlay" style="display:none">
+      <div class="jog-panel">
+        <div class="jog-panel-header">
+          <span class="jog-panel-title">点动控制</span>
+          <div class="jog-mode-tabs">
+            <button class="jog-mode-tab active" data-mode="cartesian">直角坐标</button>
+            <button class="jog-mode-tab" data-mode="joint">关节</button>
+          </div>
+          <button class="jog-close-btn" id="jogCloseBtn" type="button">✕</button>
+        </div>
+
+        <div class="jog-panel-body">
+          <!-- 直角坐标模式 -->
+          <div class="jog-cartesian" id="jogCartesian">
+            <div class="jog-cartesian-layout">
+              <div class="jog-xy-pad">
+                <button class="jog-btn" data-axis="Y+">Y+</button>
+                <div class="jog-xy-row">
+                  <button class="jog-btn" data-axis="X-">X-</button>
+                  <button class="jog-btn jog-stop-btn" id="jogStopAllBtn">■</button>
+                  <button class="jog-btn" data-axis="X+">X+</button>
+                </div>
+                <button class="jog-btn" data-axis="Y-">Y-</button>
+              </div>
+              <div class="jog-z-pad">
+                <button class="jog-btn" data-axis="Z+">Z+ ↑</button>
+                <button class="jog-btn" data-axis="Z-">Z- ↓</button>
+              </div>
+              <div class="jog-r-pad">
+                <button class="jog-btn jog-btn-sm" data-axis="Rx+">Rx+</button>
+                <button class="jog-btn jog-btn-sm" data-axis="Rx-">Rx-</button>
+                <button class="jog-btn jog-btn-sm" data-axis="Ry+">Ry+</button>
+                <button class="jog-btn jog-btn-sm" data-axis="Ry-">Ry-</button>
+                <button class="jog-btn jog-btn-sm" data-axis="Rz+">Rz+</button>
+                <button class="jog-btn jog-btn-sm" data-axis="Rz-">Rz-</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 关节模式 -->
+          <div class="jog-joint" id="jogJoint" style="display:none">
+            <div class="jog-joint-grid">
+              <button class="jog-btn" data-axis="J1+">J1+</button>
+              <button class="jog-btn" data-axis="J1-">J1-</button>
+              <button class="jog-btn" data-axis="J2+">J2+</button>
+              <button class="jog-btn" data-axis="J2-">J2-</button>
+              <button class="jog-btn" data-axis="J3+">J3+</button>
+              <button class="jog-btn" data-axis="J3-">J3-</button>
+              <button class="jog-btn" data-axis="J4+">J4+</button>
+              <button class="jog-btn" data-axis="J4-">J4-</button>
+              <button class="jog-btn" data-axis="J5+">J5+</button>
+              <button class="jog-btn" data-axis="J5-">J5-</button>
+              <button class="jog-btn" data-axis="J6+">J6+</button>
+              <button class="jog-btn" data-axis="J6-">J6-</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="jog-panel-footer">
+          <label class="jog-speed-label">速度: <span id="jogSpeedVal">30</span>%</label>
+          <input type="range" id="jogSpeed" class="jog-speed-slider" min="5" max="50" value="30">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/app.js?v=23"></script>
 </body>
 </html>

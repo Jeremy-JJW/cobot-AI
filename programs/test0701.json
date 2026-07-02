@@ -1,0 +1,55 @@
+{
+  "name": "test0701",
+  "points": [
+    {
+      "id": "P1",
+      "pose": [
+        -42.278,
+        -657.317,
+        361.508,
+        179.792,
+        -1.144,
+        -177.066
+      ]
+    },
+    {
+      "id": "P2",
+      "pose": [
+        -242.278,
+        -657.317,
+        361.508,
+        179.792,
+        -1.144,
+        -177.066
+      ]
+    }
+  ],
+  "instructions": [
+    {
+      "condition": null,
+      "params": {
+        "move_type": "movj",
+        "point": "P2"
+      },
+      "skill": "move_to_program_point",
+      "text": "运动到 P2"
+    },
+    {
+      "condition": null,
+      "params": {
+        "seconds": 2
+      },
+      "skill": "wait",
+      "text": "等待 2.0 秒"
+    },
+    {
+      "condition": null,
+      "params": {
+        "move_type": "movj",
+        "point": "P1"
+      },
+      "skill": "move_to_program_point",
+      "text": "运动到 P1"
+    }
+  ]
+}

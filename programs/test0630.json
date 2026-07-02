@@ -1,0 +1,24 @@
+{
+  "name": "test0630",
+  "points": [],
+  "instructions": [
+    {
+      "condition": null,
+      "params": {
+        "move_type": "movj",
+        "point": "P1"
+      },
+      "skill": "move_to_program_point",
+      "text": "运动到 P1"
+    },
+    {
+      "condition": null,
+      "params": {
+        "index": 1,
+        "state": "ON"
+      },
+      "skill": "set_do",
+      "text": "置 DO1 为 ON"
+    }
+  ]
+}
